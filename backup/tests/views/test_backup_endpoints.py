@@ -1,0 +1,328 @@
+"""Tests for backup API endpoints."""
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+from django.urls import reverse
+
+from backup.models import BackupRecord
+from backup.tests.factories import BackupRecordFactory, PiholeConfigFactory
+
+
+@pytest.mark.django_db
+class TestTestConnectionEndpoint:
+    """Tests for test_connection API endpoint."""
+
+    def test_success_returns_version(self, client, auth_disabled_settings):
+        """Successful test connection should return version info."""
+        url = reverse('test_connection')
+        data = {
+            'url': 'https://pihole.local',
+            'password': 'testpassword',
+            'verify_ssl': False,
+        }
+
+        with patch('backup.views.PiholeV6Client') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.test_connection.return_value = {
+                'version': {'core': {'local': {'version': 'v6.0'}}}
+            }
+            mock_client_class.return_value = mock_client
+
+            response = client.post(
+                url,
+                json.dumps(data),
+                content_type='application/json',
+            )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is True
+        assert response_data['version'] == 'v6.0'
+
+    def test_requires_url_and_password(self, client, auth_disabled_settings):
+        """Should require both url and password."""
+        url = reverse('test_connection')
+
+        # Missing password
+        response = client.post(
+            url,
+            json.dumps({'url': 'https://pihole.local'}),
+            content_type='application/json',
+        )
+        assert response.json()['success'] is False
+        assert 'required' in response.json()['error'].lower()
+
+        # Missing URL
+        response = client.post(
+            url,
+            json.dumps({'password': 'test'}),
+            content_type='application/json',
+        )
+        assert response.json()['success'] is False
+        assert 'required' in response.json()['error'].lower()
+
+    def test_returns_auth_error_on_401(self, client, auth_disabled_settings):
+        """Should return auth error on 401 response."""
+        url = reverse('test_connection')
+        data = {
+            'url': 'https://pihole.local',
+            'password': 'wrongpassword',
+            'verify_ssl': False,
+        }
+
+        with patch('backup.views.PiholeV6Client') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.test_connection.side_effect = ValueError('Invalid Pi-hole password')
+            mock_client_class.return_value = mock_client
+
+            response = client.post(
+                url,
+                json.dumps(data),
+                content_type='application/json',
+            )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is False
+        assert 'Invalid' in response_data['error'] or 'password' in response_data['error'].lower()
+
+    def test_only_accepts_post(self, client, auth_disabled_settings):
+        """Should only accept POST requests."""
+        url = reverse('test_connection')
+
+        response = client.get(url)
+        assert response.status_code == 405
+
+    def test_handles_connection_error(self, client, auth_disabled_settings):
+        """Should handle connection errors gracefully."""
+        url = reverse('test_connection')
+        data = {
+            'url': 'https://pihole.local',
+            'password': 'testpassword',
+            'verify_ssl': False,
+        }
+
+        with patch('backup.views.PiholeV6Client') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.test_connection.side_effect = ConnectionError('Cannot connect')
+            mock_client_class.return_value = mock_client
+
+            response = client.post(
+                url,
+                json.dumps(data),
+                content_type='application/json',
+            )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is False
+        assert 'connect' in response_data['error'].lower()
+
+
+@pytest.mark.django_db
+class TestCreateBackupEndpoint:
+    """Tests for create_backup API endpoint."""
+
+    def test_requires_config(self, client, auth_disabled_settings):
+        """Should require a config to exist."""
+        url = reverse('create_backup')
+        response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is False
+        assert 'configured' in response_data['error'].lower() or 'config' in response_data['error'].lower()
+
+    def test_success_returns_record_info(self, client, pihole_config, temp_backup_dir, auth_disabled_settings, sample_backup_data):
+        """Successful backup should return record info."""
+        url = reverse('create_backup')
+
+        with patch('backup.views.BackupService') as mock_service_class:
+            mock_service = MagicMock()
+            mock_record = MagicMock()
+            mock_record.id = 1
+            mock_record.filename = 'test_backup.zip'
+            mock_record.file_size = 1024
+            mock_record.status = 'success'
+            mock_record.is_manual = True
+            mock_record.created_at.isoformat.return_value = '2024-01-15T10:30:00'
+            mock_record.created_at.strftime.return_value = 'Jan 15, 2024 10:30'
+            mock_service.create_backup.return_value = mock_record
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is True
+        assert 'backup' in response_data
+        assert response_data['backup']['filename'] == 'test_backup.zip'
+
+    def test_returns_error_on_failure(self, client, pihole_config, temp_backup_dir, auth_disabled_settings):
+        """Should return error on backup failure."""
+        url = reverse('create_backup')
+
+        with patch('backup.views.BackupService') as mock_service_class:
+            mock_service = MagicMock()
+            mock_service.create_backup.side_effect = ConnectionError('Pi-hole unreachable')
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is False
+        assert 'error' in response_data
+
+    def test_only_accepts_post(self, client, pihole_config, auth_disabled_settings):
+        """Should only accept POST requests."""
+        url = reverse('create_backup')
+
+        response = client.get(url)
+        assert response.status_code == 405
+
+
+@pytest.mark.django_db
+class TestDeleteBackupEndpoint:
+    """Tests for delete_backup API endpoint."""
+
+    def test_success_removes_backup(self, client, pihole_config, backup_record, temp_backup_dir, auth_disabled_settings):
+        """Successful delete should remove backup."""
+        url = reverse('delete_backup', args=[backup_record.id])
+
+        with patch('backup.views.BackupService') as mock_service_class:
+            mock_service = MagicMock()
+            mock_service.delete_backup.return_value = True
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['success'] is True
+
+    def test_404_for_nonexistent(self, client, auth_disabled_settings):
+        """Should return 404 for non-existent backup."""
+        url = reverse('delete_backup', args=[99999])
+        response = client.post(url)
+        assert response.status_code == 404
+
+    def test_only_accepts_post(self, client, backup_record, auth_disabled_settings):
+        """Should only accept POST requests."""
+        url = reverse('delete_backup', args=[backup_record.id])
+        response = client.get(url)
+        assert response.status_code == 405
+
+
+@pytest.mark.django_db
+class TestDownloadBackupEndpoint:
+    """Tests for download_backup endpoint."""
+
+    def test_success_returns_file(self, client, pihole_config, backup_record, temp_backup_dir, auth_disabled_settings):
+        """Successful download should return file."""
+        url = reverse('download_backup', args=[backup_record.id])
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert response['Content-Disposition'] == f'attachment; filename="{backup_record.filename}"'
+
+    def test_redirects_when_file_missing(self, client, pihole_config, temp_backup_dir, auth_disabled_settings):
+        """Should redirect when file is missing."""
+        # Create record with non-existent file
+        record = BackupRecordFactory(
+            config=pihole_config,
+            filename='missing.zip',
+            file_path='/nonexistent/missing.zip',
+        )
+
+        url = reverse('download_backup', args=[record.id])
+        response = client.get(url)
+
+        assert response.status_code == 302
+        assert response.url == reverse('dashboard')
+
+    def test_404_for_nonexistent(self, client, auth_disabled_settings):
+        """Should return 404 for non-existent backup."""
+        url = reverse('download_backup', args=[99999])
+        response = client.get(url)
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestHealthCheckEndpoint:
+    """Tests for health_check endpoint."""
+
+    def test_returns_ok_when_healthy(self, client, mock_subprocess_pgrep_success):
+        """Should return ok status when healthy."""
+        url = reverse('health_check')
+        response = client.get(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data['web'] == 'ok'
+        assert response_data['scheduler'] == 'ok'
+        assert response_data['database'] == 'ok'
+
+    def test_returns_503_when_scheduler_not_running(self, client, mock_subprocess_pgrep_failure):
+        """Should return 503 when scheduler not running."""
+        url = reverse('health_check')
+        response = client.get(url)
+
+        assert response.status_code == 503
+        response_data = response.json()
+        assert response_data['scheduler'] == 'not running'
+
+    def test_accessible_without_auth(self, client, auth_enabled_settings, mock_subprocess_pgrep_success):
+        """Health check should be accessible without authentication."""
+        url = reverse('health_check')
+        response = client.get(url)
+
+        # Should not redirect to login
+        assert response.status_code == 200
+
+
+@pytest.mark.django_db
+class TestLoginView:
+    """Tests for login view."""
+
+    def test_get_returns_login_form(self, client):
+        """GET should return login form."""
+        url = reverse('login')
+        response = client.get(url)
+
+        assert response.status_code == 200
+        templates_used = [t.name for t in response.templates]
+        assert 'backup/login.html' in templates_used
+
+    def test_post_valid_password_redirects(self, client, auth_enabled_settings):
+        """POST with valid password should redirect to dashboard."""
+        url = reverse('login')
+        response = client.post(url, {'password': 'testpassword'})
+
+        assert response.status_code == 302
+        assert response.url == reverse('dashboard')
+
+    def test_post_invalid_password_shows_error(self, client, auth_enabled_settings):
+        """POST with invalid password should show error."""
+        url = reverse('login')
+        response = client.post(url, {'password': 'wrongpassword'})
+
+        assert response.status_code == 200
+        assert 'Invalid' in response.content.decode() or 'error' in response.content.decode().lower()
+
+
+@pytest.mark.django_db
+class TestLogoutView:
+    """Tests for logout view."""
+
+    def test_logout_clears_session_and_redirects(self, authenticated_client):
+        """Logout should clear session and redirect to login."""
+        url = reverse('logout')
+        response = authenticated_client.get(url)
+
+        assert response.status_code == 302
+        assert response.url == reverse('login')
+
+        # Session should be cleared
+        assert 'authenticated' not in authenticated_client.session
