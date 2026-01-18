@@ -33,3 +33,5 @@ backups/
 # Coverage
 htmlcov/
 .coverage
+
+.claude/

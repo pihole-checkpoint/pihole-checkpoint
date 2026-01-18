@@ -147,11 +147,105 @@
 
 {% block extra_js %}
 <script>
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function updateBackupCountBadge(delta) {
+    const badge = document.querySelector('.card-header .badge');
+    if (badge) {
+        const match = badge.textContent.match(/(\d+)/);
+        if (match) {
+            const newCount = parseInt(match[1]) + delta;
+            badge.textContent = newCount + ' backup' + (newCount !== 1 ? 's' : '');
+        }
+    }
+}
+
+function updateLastBackupCard(displayTime) {
+    const cards = document.querySelectorAll('.card-body');
+    for (const card of cards) {
+        const title = card.querySelector('.card-title');
+        if (title && title.textContent.includes('Last Backup')) {
+            const p = card.querySelector('p');
+            const small = card.querySelector('small');
+            if (p) {
+                p.classList.remove('text-muted');
+                p.textContent = displayTime;
+            }
+            if (small) {
+                small.textContent = 'just now';
+            }
+            break;
+        }
+    }
+}
+
+function addBackupToTable(backup) {
+    const tbody = document.querySelector('.backup-table tbody');
+    if (!tbody) {
+        // No table exists yet (first backup), reload to show the table
+        location.reload();
+        return;
+    }
+
+    const row = document.createElement('tr');
+    row.id = `backup-${backup.id}`;
+    row.style.opacity = '0';
+    row.style.transition = 'opacity 0.3s ease-in';
+
+    const statusBadge = backup.status === 'success'
+        ? '<span class="badge bg-success">Success</span>'
+        : '<span class="badge bg-danger">Failed</span>';
+
+    const typeBadge = backup.is_manual
+        ? '<span class="badge bg-info">Manual</span>'
+        : '<span class="badge bg-secondary">Scheduled</span>';
+
+    const downloadBtn = backup.status === 'success'
+        ? `<a href="/backup/${backup.id}/download/" class="btn btn-sm btn-outline-primary" title="Download"><i class="bi bi-download"></i></a>`
+        : '';
+
+    row.innerHTML = `
+        <td>
+            <i class="bi bi-file-earmark-zip text-primary"></i>
+            ${backup.filename}
+        </td>
+        <td>${formatFileSize(backup.file_size)}</td>
+        <td>${statusBadge}</td>
+        <td>${typeBadge}</td>
+        <td>${backup.created_at_display}</td>
+        <td>
+            ${downloadBtn}
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteBackup(${backup.id})" title="Delete">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    `;
+
+    tbody.insertBefore(row, tbody.firstChild);
+
+    // Trigger fade-in animation
+    requestAnimationFrame(() => {
+        row.style.opacity = '1';
+    });
+
+    updateBackupCountBadge(1);
+    updateLastBackupCard(backup.created_at_display);
+}
+
 async function createBackup() {
     const btn = document.getElementById('backupNowBtn');
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
         const response = await fetch('{% url "create_backup" %}', {
@@ -159,18 +253,25 @@ async function createBackup() {
             headers: {
                 'X-CSRFToken': getCsrfToken(),
                 'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
 
         if (data.success) {
-            showToast('Backup created successfully!', 'success');
-            setTimeout(() => location.reload(), 1000);
+            showToast(`Backup created: ${data.backup.filename}`, 'success');
+            addBackupToTable(data.backup);
         } else {
             showToast(data.error || 'Backup failed', 'danger');
         }
     } catch (error) {
-        showToast('Error creating backup: ' + error.message, 'danger');
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            showToast('Backup timed out after 60 seconds', 'warning');
+        } else {
+            showToast('Error creating backup: ' + error.message, 'danger');
+        }
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
@@ -193,6 +294,7 @@ async function deleteBackup(id) {
         if (data.success) {
             showToast('Backup deleted', 'success');
             document.getElementById(`backup-${id}`).remove();
+            updateBackupCountBadge(-1);
         } else {
             showToast(data.error || 'Delete failed', 'danger');
         }

@@ -86,8 +86,15 @@ def create_backup(request):
         record = service.create_backup(is_manual=True)
         return JsonResponse({
             'success': True,
-            'backup_id': record.id,
-            'filename': record.filename
+            'backup': {
+                'id': record.id,
+                'filename': record.filename,
+                'file_size': record.file_size,
+                'status': record.status,
+                'is_manual': record.is_manual,
+                'created_at': record.created_at.isoformat(),
+                'created_at_display': record.created_at.strftime('%b %d, %Y %H:%M'),
+            }
         })
     except Exception as e:
         logger.exception("Backup creation error")
