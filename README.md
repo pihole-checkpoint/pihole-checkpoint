@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="backup/static/backup/img/logo.png" alt="Pi-hole Checkpoint" width="200">
+  <img src="backup/static/backup/img/logo.png" alt="Pi-hole Checkpoint" width="500">
 </p>
 
 # Pi-hole Checkpoint
@@ -39,8 +39,8 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
          - ./data:/app/data
          - ./backups:/app/backups
        environment:
-         - SECRET_KEY=your-random-secret-key-at-least-50-chars
-         - FIELD_ENCRYPTION_KEY=exactly-32-characters-here!!
+         - SECRET_KEY=your-random-secret-key
+         - FIELD_ENCRYPTION_KEY=your-fernet-encryption-key
          - TIME_ZONE=UTC
        restart: unless-stopped
    ```
