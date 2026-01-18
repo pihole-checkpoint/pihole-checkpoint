@@ -1,0 +1,116 @@
+name: Build and Publish Docker Image
+
+on:
+  # Trigger after test workflow completes on main/master
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+    branches: [main, master]
+
+  # Tag pushes trigger directly (tests run in parallel via test.yml)
+  push:
+    tags:
+      - 'v*'
+
+  # Manual trigger (bypasses tests - use with caution)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Custom image tag (optional)'
+        required: false
+        type: string
+      skip_test_check:
+        description: 'Skip test requirement (emergency only)'
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Gate job - checks if we should proceed
+  check-tests:
+    runs-on: ubuntu-latest
+    outputs:
+      should-build: ${{ steps.check.outputs.should-build }}
+    steps:
+      - name: Determine if build should proceed
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-build=true" >> $GITHUB_OUTPUT
+            echo "Manual trigger - proceeding with build"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "should-build=true" >> $GITHUB_OUTPUT
+            echo "Tag push - proceeding with build"
+          elif [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+            echo "should-build=true" >> $GITHUB_OUTPUT
+            echo "Tests passed - proceeding with build"
+          else
+            echo "should-build=false" >> $GITHUB_OUTPUT
+            echo "Tests failed or skipped - aborting build"
+          fi
+
+  build-and-push:
+    needs: check-tests
+    if: needs.check-tests.outputs.should-build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # For workflow_run, checkout the commit that triggered tests
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master' }}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-
+            type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
