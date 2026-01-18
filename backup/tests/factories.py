@@ -2,7 +2,6 @@
 from datetime import time
 
 import factory
-from django.utils import timezone
 
 from backup.models import BackupRecord, PiholeConfig
 
