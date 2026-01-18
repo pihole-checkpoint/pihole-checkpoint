@@ -1,3 +1,40 @@
+[project]
+name = "pihole-checkpoint"
+version = "1.0.0"
+description = "Web application for backing up Pi-hole v6 instances via the Teleporter API"
+requires-python = ">=3.12"
+dependencies = [
+    "Django>=5.0,<6.0",
+    "gunicorn>=21.0",
+    "requests>=2.31",
+    "django-encrypted-model-fields>=0.6",
+    "django-apscheduler>=0.6",
+    "APScheduler>=3.10,<4.0",
+    "python-dotenv>=1.0",
+    "whitenoise>=6.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.7",
+    "pytest-cov>=4.1",
+    "responses>=0.24",
+    "factory-boy>=3.3",
+    "freezegun>=1.2",
+    "pytest-mock>=3.12",
+    "ruff",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]

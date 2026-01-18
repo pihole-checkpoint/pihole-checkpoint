@@ -35,6 +35,27 @@ docker compose down
 
 Web UI available at http://localhost:8000 after startup.
 
+## Local Development with uv
+
+This project uses [uv](https://docs.astral.sh/uv/) for Python virtual environment management, testing, and linting.
+
+```bash
+# Run tests
+uv run pytest
+
+# Run linting
+uv run ruff check .
+
+# Run formatter check
+uv run ruff format --check .
+
+# Fix linting issues
+uv run ruff check --fix .
+
+# Format code
+uv run ruff format .
+```
+
 ## Architecture
 
 ### Single-Container Design

@@ -1,19 +1,18 @@
 """Unit tests for RetentionService."""
+
 from datetime import timedelta
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
-from freezegun import freeze_time
 
-from backup.models import BackupRecord, PiholeConfig
+from backup.models import BackupRecord
 from backup.services.retention_service import RetentionService
 from backup.tests.factories import (
     BackupRecordFactory,
     FailedBackupRecordFactory,
-    PiholeConfigFactory,
     InactivePiholeConfigFactory,
+    PiholeConfigFactory,
 )
 
 
@@ -28,11 +27,11 @@ class TestRetentionServiceEnforceRetention:
         # Create 5 backups (2 more than max)
         records = []
         for i in range(5):
-            filepath = temp_backup_dir / f'backup_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"backup_{i}.zip"
+            filepath.write_bytes(b"test data")
             record = BackupRecordFactory(
                 config=config,
-                filename=f'backup_{i}.zip',
+                filename=f"backup_{i}.zip",
                 file_path=str(filepath),
             )
             records.append(record)
@@ -42,7 +41,7 @@ class TestRetentionServiceEnforceRetention:
 
         assert deleted_count == 2
         # Should keep 3 newest
-        remaining = BackupRecord.objects.filter(config=config, status='success')
+        remaining = BackupRecord.objects.filter(config=config, status="success")
         assert remaining.count() == 3
 
     def test_deletes_by_age(self, temp_backup_dir):
@@ -50,20 +49,20 @@ class TestRetentionServiceEnforceRetention:
         config = PiholeConfigFactory(max_backups=0, max_age_days=30)  # 0 means no count limit
 
         # Create a recent backup
-        recent_file = temp_backup_dir / 'recent.zip'
-        recent_file.write_bytes(b'test data')
+        recent_file = temp_backup_dir / "recent.zip"
+        recent_file.write_bytes(b"test data")
         recent = BackupRecordFactory(
             config=config,
-            filename='recent.zip',
+            filename="recent.zip",
             file_path=str(recent_file),
         )
 
         # Create an old backup (40 days old)
-        old_file = temp_backup_dir / 'old.zip'
-        old_file.write_bytes(b'test data')
+        old_file = temp_backup_dir / "old.zip"
+        old_file.write_bytes(b"test data")
         old = BackupRecordFactory(
             config=config,
-            filename='old.zip',
+            filename="old.zip",
             file_path=str(old_file),
         )
         # Manually update created_at to be old
@@ -82,20 +81,22 @@ class TestRetentionServiceEnforceRetention:
         """Should apply both count and age retention policies."""
         config = PiholeConfigFactory(max_backups=5, max_age_days=10)
 
-        # Create 7 backups - 3 will be deleted by count policy first
+        # Create 7 backups - 2 will be deleted by count policy first
         records = []
         for i in range(7):
-            filepath = temp_backup_dir / f'backup_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"backup_{i}.zip"
+            filepath.write_bytes(b"test data")
             record = BackupRecordFactory(
                 config=config,
-                filename=f'backup_{i}.zip',
+                filename=f"backup_{i}.zip",
                 file_path=str(filepath),
             )
             records.append(record)
 
-        # Make 2 of the remaining 5 old (will be deleted by age policy)
-        for record in records[:2]:
+        # Make 4 records old (15 days ago). The count policy deletes oldest 2.
+        # Then age policy deletes the remaining 2 old ones.
+        # Records 0-3 become old, count deletes 0-1, age deletes 2-3.
+        for record in records[0:4]:
             old_time = timezone.now() - timedelta(days=15)
             BackupRecord.objects.filter(pk=record.pk).update(created_at=old_time)
 
@@ -104,7 +105,7 @@ class TestRetentionServiceEnforceRetention:
 
         # 2 deleted by count (7 -> 5), then 2 deleted by age
         assert deleted_count == 4
-        remaining = BackupRecord.objects.filter(config=config, status='success')
+        remaining = BackupRecord.objects.filter(config=config, status="success")
         assert remaining.count() == 3
 
     def test_cleans_old_failed_backups(self, temp_backup_dir):
@@ -132,11 +133,11 @@ class TestRetentionServiceEnforceRetention:
 
         # Create 5 backups
         for i in range(5):
-            filepath = temp_backup_dir / f'backup_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"backup_{i}.zip"
+            filepath.write_bytes(b"test data")
             BackupRecordFactory(
                 config=config,
-                filename=f'backup_{i}.zip',
+                filename=f"backup_{i}.zip",
                 file_path=str(filepath),
             )
 
@@ -152,15 +153,15 @@ class TestRetentionServiceEnforceRetention:
         # Create backups with non-existent file paths
         BackupRecordFactory(
             config=config,
-            filename='exists.zip',
-            file_path=str(temp_backup_dir / 'exists.zip'),
+            filename="exists.zip",
+            file_path=str(temp_backup_dir / "exists.zip"),
         )
-        (temp_backup_dir / 'exists.zip').write_bytes(b'test')
+        (temp_backup_dir / "exists.zip").write_bytes(b"test")
 
         BackupRecordFactory(
             config=config,
-            filename='missing.zip',
-            file_path='/nonexistent/path/missing.zip',
+            filename="missing.zip",
+            file_path="/nonexistent/path/missing.zip",
         )
 
         service = RetentionService()
@@ -175,11 +176,11 @@ class TestRetentionServiceEnforceRetention:
 
         # Create many backups
         for i in range(10):
-            filepath = temp_backup_dir / f'backup_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"backup_{i}.zip"
+            filepath.write_bytes(b"test data")
             BackupRecordFactory(
                 config=config,
-                filename=f'backup_{i}.zip',
+                filename=f"backup_{i}.zip",
                 file_path=str(filepath),
             )
 
@@ -188,7 +189,7 @@ class TestRetentionServiceEnforceRetention:
 
         # No count-based or age-based deletion
         assert deleted_count == 0
-        remaining = BackupRecord.objects.filter(config=config, status='success')
+        remaining = BackupRecord.objects.filter(config=config, status="success")
         assert remaining.count() == 10
 
 
@@ -204,11 +205,11 @@ class TestRetentionServiceEnforceAll:
         # Create 3 backups for each config
         for config in [config1, config2]:
             for i in range(3):
-                filepath = temp_backup_dir / f'{config.name}_{i}.zip'
-                filepath.write_bytes(b'test data')
+                filepath = temp_backup_dir / f"{config.name}_{i}.zip"
+                filepath.write_bytes(b"test data")
                 BackupRecordFactory(
                     config=config,
-                    filename=f'{config.name}_{i}.zip',
+                    filename=f"{config.name}_{i}.zip",
                     file_path=str(filepath),
                 )
 
@@ -226,11 +227,11 @@ class TestRetentionServiceEnforceAll:
         # Create 3 backups for each
         for config in [active, inactive]:
             for i in range(3):
-                filepath = temp_backup_dir / f'{config.name}_{i}.zip'
-                filepath.write_bytes(b'test data')
+                filepath = temp_backup_dir / f"{config.name}_{i}.zip"
+                filepath.write_bytes(b"test data")
                 BackupRecordFactory(
                     config=config,
-                    filename=f'{config.name}_{i}.zip',
+                    filename=f"{config.name}_{i}.zip",
                     file_path=str(filepath),
                 )
 
@@ -240,7 +241,7 @@ class TestRetentionServiceEnforceAll:
         # Only active config's 2 excess backups should be deleted
         assert total_deleted == 2
         # Inactive config should still have all 3
-        assert BackupRecord.objects.filter(config=inactive, status='success').count() == 3
+        assert BackupRecord.objects.filter(config=inactive, status="success").count() == 3
 
     def test_returns_total_count(self, temp_backup_dir):
         """Should return total deletion count across all configs."""
@@ -249,14 +250,14 @@ class TestRetentionServiceEnforceAll:
 
         # Config 1: 4 backups, 2 to delete
         for i in range(4):
-            filepath = temp_backup_dir / f'config1_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"config1_{i}.zip"
+            filepath.write_bytes(b"test data")
             BackupRecordFactory(config=config1, file_path=str(filepath))
 
         # Config 2: 5 backups, 4 to delete
         for i in range(5):
-            filepath = temp_backup_dir / f'config2_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"config2_{i}.zip"
+            filepath.write_bytes(b"test data")
             BackupRecordFactory(config=config2, file_path=str(filepath))
 
         service = RetentionService()
@@ -271,8 +272,8 @@ class TestRetentionServiceEnforceAll:
 
         # Create backups for config2 only
         for i in range(3):
-            filepath = temp_backup_dir / f'config2_{i}.zip'
-            filepath.write_bytes(b'test data')
+            filepath = temp_backup_dir / f"config2_{i}.zip"
+            filepath.write_bytes(b"test data")
             BackupRecordFactory(config=config2, file_path=str(filepath))
 
         service = RetentionService()
@@ -282,10 +283,10 @@ class TestRetentionServiceEnforceAll:
 
         def mock_enforce(config):
             if config == config1:
-                raise Exception('Simulated error')
+                raise Exception("Simulated error")
             return original_enforce(config)
 
-        with patch.object(service, 'enforce_retention', side_effect=mock_enforce):
+        with patch.object(service, "enforce_retention", side_effect=mock_enforce):
             total_deleted = service.enforce_all()
 
         # Should have processed config2 despite config1 error
@@ -299,12 +300,12 @@ class TestRetentionServiceDeleteBackup:
     def test_deletes_file_and_record(self, temp_backup_dir):
         """Should delete both file and database record."""
         config = PiholeConfigFactory()
-        filepath = temp_backup_dir / 'test_delete.zip'
-        filepath.write_bytes(b'test data')
+        filepath = temp_backup_dir / "test_delete.zip"
+        filepath.write_bytes(b"test data")
 
         record = BackupRecordFactory(
             config=config,
-            filename='test_delete.zip',
+            filename="test_delete.zip",
             file_path=str(filepath),
         )
         record_id = record.id
@@ -321,8 +322,8 @@ class TestRetentionServiceDeleteBackup:
 
         record = BackupRecordFactory(
             config=config,
-            filename='missing.zip',
-            file_path='/nonexistent/missing.zip',
+            filename="missing.zip",
+            file_path="/nonexistent/missing.zip",
         )
         record_id = record.id
 

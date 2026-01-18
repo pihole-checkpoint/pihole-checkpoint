@@ -1,4 +1,5 @@
 """Simple password-based authentication middleware."""
+
 from django.conf import settings
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -26,16 +27,16 @@ class SimpleAuthMiddleware:
 
         # Allow login, logout, and health check URLs
         allowed_paths = [
-            reverse('login'),
-            reverse('health_check'),
-            '/admin/',
+            reverse("login"),
+            reverse("health_check"),
+            "/admin/",
         ]
 
         if any(request.path.startswith(path) for path in allowed_paths):
             return self.get_response(request)
 
         # Check if user is authenticated
-        if not request.session.get('authenticated'):
-            return redirect('login')
+        if not request.session.get("authenticated"):
+            return redirect("login")
 
         return self.get_response(request)

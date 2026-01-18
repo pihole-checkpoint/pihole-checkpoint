@@ -20,29 +20,37 @@ def dashboard(request):
     config = PiholeConfig.objects.first()
     backups = BackupRecord.objects.filter(config=config) if config else BackupRecord.objects.none()
 
-    return render(request, 'backup/dashboard.html', {
-        'config': config,
-        'backups': backups,
-    })
+    return render(
+        request,
+        "backup/dashboard.html",
+        {
+            "config": config,
+            "backups": backups,
+        },
+    )
 
 
 def settings_view(request):
     """Settings view for configuring Pi-hole connection."""
     config = PiholeConfig.objects.first()
 
-    if request.method == 'POST':
+    if request.method == "POST":
         form = PiholeConfigForm(request.POST, instance=config)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Settings saved successfully!')
-            return redirect('settings')
+            messages.success(request, "Settings saved successfully!")
+            return redirect("settings")
     else:
         form = PiholeConfigForm(instance=config)
 
-    return render(request, 'backup/settings.html', {
-        'form': form,
-        'config': config,
-    })
+    return render(
+        request,
+        "backup/settings.html",
+        {
+            "form": form,
+            "config": config,
+        },
+    )
 
 
 @require_POST
@@ -50,27 +58,27 @@ def test_connection(request):
     """AJAX endpoint to test Pi-hole connection."""
     try:
         data = json.loads(request.body)
-        url = data.get('url')
-        password = data.get('password')
-        verify_ssl = data.get('verify_ssl', False)
+        url = data.get("url")
+        password = data.get("password")
+        verify_ssl = data.get("verify_ssl", False)
 
         if not url or not password:
-            return JsonResponse({'success': False, 'error': 'URL and password required'})
+            return JsonResponse({"success": False, "error": "URL and password required"})
 
         client = PiholeV6Client(url, password, verify_ssl)
         version_info = client.test_connection()
 
-        version = version_info.get('version', {}).get('core', {}).get('local', {}).get('version', 'unknown')
+        version = version_info.get("version", {}).get("core", {}).get("local", {}).get("version", "unknown")
 
-        return JsonResponse({'success': True, 'version': version})
+        return JsonResponse({"success": True, "version": version})
 
     except ValueError as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
     except ConnectionError as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
     except Exception as e:
         logger.exception("Test connection error")
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 @require_POST
@@ -79,26 +87,28 @@ def create_backup(request):
     config = PiholeConfig.objects.first()
 
     if not config:
-        return JsonResponse({'success': False, 'error': 'No Pi-hole configured'})
+        return JsonResponse({"success": False, "error": "No Pi-hole configured"})
 
     try:
         service = BackupService(config)
         record = service.create_backup(is_manual=True)
-        return JsonResponse({
-            'success': True,
-            'backup': {
-                'id': record.id,
-                'filename': record.filename,
-                'file_size': record.file_size,
-                'status': record.status,
-                'is_manual': record.is_manual,
-                'created_at': record.created_at.isoformat(),
-                'created_at_display': record.created_at.strftime('%b %d, %Y %H:%M'),
+        return JsonResponse(
+            {
+                "success": True,
+                "backup": {
+                    "id": record.id,
+                    "filename": record.filename,
+                    "file_size": record.file_size,
+                    "status": record.status,
+                    "is_manual": record.is_manual,
+                    "created_at": record.created_at.isoformat(),
+                    "created_at_display": record.created_at.strftime("%b %d, %Y %H:%M"),
+                },
             }
-        })
+        )
     except Exception as e:
         logger.exception("Backup creation error")
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 @require_POST
@@ -110,10 +120,10 @@ def delete_backup(request, backup_id):
     try:
         service = BackupService(config)
         service.delete_backup(record)
-        return JsonResponse({'success': True})
+        return JsonResponse({"success": True})
     except Exception as e:
         logger.exception("Backup deletion error")
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 def download_backup(request, backup_id):
@@ -125,36 +135,32 @@ def download_backup(request, backup_id):
     filepath = service.get_backup_file(record)
 
     if not filepath:
-        messages.error(request, 'Backup file not found')
-        return redirect('dashboard')
+        messages.error(request, "Backup file not found")
+        return redirect("dashboard")
 
-    return FileResponse(
-        open(filepath, 'rb'),
-        as_attachment=True,
-        filename=record.filename
-    )
+    return FileResponse(open(filepath, "rb"), as_attachment=True, filename=record.filename)
 
 
 def login_view(request):
     """Login view for optional authentication."""
-    if request.method == 'POST':
+    if request.method == "POST":
         form = LoginForm(request.POST)
         if form.is_valid():
-            if form.cleaned_data['password'] == settings.APP_PASSWORD:
-                request.session['authenticated'] = True
-                return redirect('dashboard')
+            if form.cleaned_data["password"] == settings.APP_PASSWORD:
+                request.session["authenticated"] = True
+                return redirect("dashboard")
             else:
-                return render(request, 'backup/login.html', {'error': 'Invalid password'})
+                return render(request, "backup/login.html", {"error": "Invalid password"})
     else:
         form = LoginForm()
 
-    return render(request, 'backup/login.html', {'form': form})
+    return render(request, "backup/login.html", {"form": form})
 
 
 def logout_view(request):
     """Logout view."""
     request.session.flush()
-    return redirect('login')
+    return redirect("login")
 
 
 def health_check(request):
@@ -162,13 +168,13 @@ def health_check(request):
     import subprocess
 
     # Check if scheduler process is running
-    result = subprocess.run(['pgrep', '-f', 'runapscheduler'], capture_output=True)
+    result = subprocess.run(["pgrep", "-f", "runapscheduler"], capture_output=True)
     scheduler_running = result.returncode == 0
 
     status = {
-        'web': 'ok',
-        'scheduler': 'ok' if scheduler_running else 'not running',
-        'database': 'ok',
+        "web": "ok",
+        "scheduler": "ok" if scheduler_running else "not running",
+        "database": "ok",
     }
 
     if not scheduler_running:
