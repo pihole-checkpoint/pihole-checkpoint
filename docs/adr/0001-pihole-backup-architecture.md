@@ -1,4 +1,4 @@
-# ADR-001: Pi-hole v6 Backup Application Architecture
+# ADR-0001: Pi-hole v6 Backup Application Architecture
 
 **Status:** Accepted
 **Date:** 2026-01-18

@@ -1,4 +1,4 @@
-# ADR-007: GitHub Actions Test Workflow Integration
+# ADR-0007: GitHub Actions Test Workflow Integration
 
 **Status:** Accepted
 **Date:** 2026-01-18
