@@ -13,4 +13,5 @@ urlpatterns = [
     path("api/backup/", views.create_backup, name="create_backup"),
     path("backup/<int:backup_id>/delete/", views.delete_backup, name="delete_backup"),
     path("backup/<int:backup_id>/download/", views.download_backup, name="download_backup"),
+    path("api/restore/<int:backup_id>/", views.restore_backup, name="restore_backup"),
 ]

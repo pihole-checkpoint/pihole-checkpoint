@@ -11,6 +11,7 @@ from .forms import LoginForm, PiholeConfigForm
 from .models import BackupRecord, PiholeConfig
 from .services.backup_service import BackupService
 from .services.pihole_client import PiholeV6Client
+from .services.restore_service import RestoreService
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,30 @@ def delete_backup(request, backup_id):
         return JsonResponse({"success": True})
     except Exception as e:
         logger.exception("Backup deletion error")
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@require_POST
+def restore_backup(request, backup_id):
+    """AJAX endpoint to restore a backup to Pi-hole."""
+    record = get_object_or_404(BackupRecord, id=backup_id)
+    config = record.config
+
+    try:
+        service = RestoreService(config)
+        service.restore_backup(record)
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Backup restored successfully",
+            }
+        )
+    except FileNotFoundError as e:
+        return JsonResponse({"success": False, "error": str(e)})
+    except ValueError as e:
+        return JsonResponse({"success": False, "error": str(e)})
+    except Exception as e:
+        logger.exception("Restore error")
         return JsonResponse({"success": False, "error": str(e)})
 
 

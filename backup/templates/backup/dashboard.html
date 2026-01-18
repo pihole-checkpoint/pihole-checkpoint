@@ -120,6 +120,12 @@
                         <td>{{ backup.created_at|date:"M d, Y H:i" }}</td>
                         <td>
                             {% if backup.status == 'success' %}
+                            <button class="btn btn-sm btn-outline-warning restore-btn"
+                                    data-backup-id="{{ backup.id }}"
+                                    data-backup-name="{{ backup.filename }}"
+                                    title="Restore this backup to Pi-hole">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
                             <a href="{% url 'download_backup' backup.id %}" class="btn btn-sm btn-outline-primary" title="Download">
                                 <i class="bi bi-download"></i>
                             </a>
@@ -206,6 +212,10 @@ function addBackupToTable(backup) {
         ? '<span class="badge bg-info">Manual</span>'
         : '<span class="badge bg-secondary">Scheduled</span>';
 
+    const restoreBtn = backup.status === 'success'
+        ? `<button class="btn btn-sm btn-outline-warning restore-btn" data-backup-id="${backup.id}" data-backup-name="${backup.filename}" title="Restore this backup to Pi-hole"><i class="bi bi-arrow-counterclockwise"></i></button>`
+        : '';
+
     const downloadBtn = backup.status === 'success'
         ? `<a href="/backup/${backup.id}/download/" class="btn btn-sm btn-outline-primary" title="Download"><i class="bi bi-download"></i></a>`
         : '';
@@ -220,6 +230,7 @@ function addBackupToTable(backup) {
         <td>${typeBadge}</td>
         <td>${backup.created_at_display}</td>
         <td>
+            ${restoreBtn}
             ${downloadBtn}
             <button class="btn btn-sm btn-outline-danger" onclick="deleteBackup(${backup.id})" title="Delete">
                 <i class="bi bi-trash"></i>
@@ -302,5 +313,47 @@ async function deleteBackup(id) {
         showToast('Error deleting backup: ' + error.message, 'danger');
     }
 }
+
+async function restoreBackup(btn) {
+    const backupId = btn.dataset.backupId;
+    const backupName = btn.dataset.backupName;
+
+    if (!confirm(`Restore "${backupName}" to Pi-hole?\n\nThis will overwrite your current Pi-hole configuration.`)) {
+        return;
+    }
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        const response = await fetch(`/api/restore/${backupId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+            },
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Backup restored successfully!', 'success');
+        } else {
+            showToast(`Restore failed: ${data.error}`, 'danger');
+        }
+    } catch (error) {
+        showToast(`Restore failed: ${error.message}`, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+// Event delegation for restore buttons
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.restore-btn');
+    if (btn) {
+        restoreBackup(btn);
+    }
+});
 </script>
 {% endblock %}
