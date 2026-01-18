@@ -334,6 +334,128 @@ class TestPiholeV6ClientDownloadTeleporterBackup:
         assert result == backup_data
 
 
+class TestPiholeV6ClientUploadTeleporterBackup:
+    """Tests for PiholeV6Client.upload_teleporter_backup()."""
+
+    @responses.activate
+    def test_upload_returns_response_dict(self):
+        """upload_teleporter_backup should return API response dict."""
+        backup_data = b"PK\x03\x04test backup content"
+
+        # Mock auth
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/auth",
+            json={"session": {"sid": "test-session-123", "validity": 300}},
+            status=200,
+        )
+        # Mock teleporter upload endpoint
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/teleporter",
+            json={"status": "success", "imported": {"settings": True, "lists": True}},
+            status=200,
+        )
+
+        client = PiholeV6Client("https://pihole.local", "password")
+        result = client.upload_teleporter_backup(backup_data)
+
+        assert result["status"] == "success"
+        assert result["imported"]["settings"] is True
+
+    @responses.activate
+    def test_upload_includes_session_header(self):
+        """upload_teleporter_backup should include X-FTL-SID header."""
+        backup_data = b"PK\x03\x04backup"
+
+        # Mock auth
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/auth",
+            json={"session": {"sid": "my-session-id", "validity": 300}},
+            status=200,
+        )
+        # Mock teleporter upload endpoint
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/teleporter",
+            json={"status": "success"},
+            status=200,
+        )
+
+        client = PiholeV6Client("https://pihole.local", "password")
+        client.upload_teleporter_backup(backup_data)
+
+        # Check that POST request (index 1) had the session header
+        assert responses.calls[1].request.headers.get("X-FTL-SID") == "my-session-id"
+
+    @responses.activate
+    def test_upload_sends_multipart_form(self):
+        """upload_teleporter_backup should send file as multipart form."""
+        backup_data = b"PK\x03\x04backup content"
+
+        # Mock auth
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/auth",
+            json={"session": {"sid": "test-session", "validity": 300}},
+            status=200,
+        )
+        # Mock teleporter upload endpoint
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/teleporter",
+            json={"status": "success"},
+            status=200,
+        )
+
+        client = PiholeV6Client("https://pihole.local", "password")
+        client.upload_teleporter_backup(backup_data)
+
+        # Check that the request was multipart
+        content_type = responses.calls[1].request.headers.get("Content-Type")
+        assert "multipart/form-data" in content_type
+
+    @responses.activate
+    def test_upload_retries_on_session_expiry(self):
+        """upload_teleporter_backup should retry on 401."""
+        backup_data = b"PK\x03\x04backup data"
+
+        # Mock initial auth
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/auth",
+            json={"session": {"sid": "session-1", "validity": 300}},
+            status=200,
+        )
+        # Mock teleporter endpoint returning 401 first
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/teleporter",
+            status=401,
+        )
+        # Mock re-auth
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/auth",
+            json={"session": {"sid": "session-2", "validity": 300}},
+            status=200,
+        )
+        # Mock successful teleporter endpoint after re-auth
+        responses.add(
+            responses.POST,
+            "https://pihole.local/api/teleporter",
+            json={"status": "success"},
+            status=200,
+        )
+
+        client = PiholeV6Client("https://pihole.local", "password")
+        result = client.upload_teleporter_backup(backup_data)
+
+        assert result["status"] == "success"
+        assert client.session_id == "session-2"
+
+
 class TestPiholeV6ClientGetUrl:
     """Tests for PiholeV6Client._get_url()."""
 

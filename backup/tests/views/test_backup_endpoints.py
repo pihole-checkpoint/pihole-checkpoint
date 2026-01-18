@@ -218,6 +218,95 @@ class TestDeleteBackupEndpoint:
 
 
 @pytest.mark.django_db
+class TestRestoreBackupEndpoint:
+    """Tests for restore_backup API endpoint."""
+
+    def test_success_returns_message(
+        self, client, pihole_config, backup_record, temp_backup_dir, auth_disabled_settings
+    ):
+        """Successful restore should return success message."""
+        url = reverse("restore_backup", args=[backup_record.id])
+
+        with patch("backup.views.RestoreService") as mock_service_class:
+            mock_service = MagicMock()
+            mock_service.restore_backup.return_value = {"status": "success"}
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["success"] is True
+        assert "message" in response_data
+
+    def test_404_for_nonexistent(self, client, auth_disabled_settings):
+        """Should return 404 for non-existent backup."""
+        url = reverse("restore_backup", args=[99999])
+        response = client.post(url)
+        assert response.status_code == 404
+
+    def test_only_accepts_post(self, client, backup_record, auth_disabled_settings):
+        """Should only accept POST requests."""
+        url = reverse("restore_backup", args=[backup_record.id])
+        response = client.get(url)
+        assert response.status_code == 405
+
+    def test_returns_error_on_file_not_found(
+        self, client, pihole_config, backup_record, temp_backup_dir, auth_disabled_settings
+    ):
+        """Should return error when backup file is missing."""
+        url = reverse("restore_backup", args=[backup_record.id])
+
+        with patch("backup.views.RestoreService") as mock_service_class:
+            mock_service = MagicMock()
+            mock_service.restore_backup.side_effect = FileNotFoundError("Backup file not found")
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["success"] is False
+        assert "not found" in response_data["error"].lower()
+
+    def test_returns_error_on_checksum_mismatch(
+        self, client, pihole_config, backup_record, temp_backup_dir, auth_disabled_settings
+    ):
+        """Should return error when checksum doesn't match."""
+        url = reverse("restore_backup", args=[backup_record.id])
+
+        with patch("backup.views.RestoreService") as mock_service_class:
+            mock_service = MagicMock()
+            mock_service.restore_backup.side_effect = ValueError("Backup file corrupted (checksum mismatch)")
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["success"] is False
+        assert "corrupted" in response_data["error"].lower() or "checksum" in response_data["error"].lower()
+
+    def test_returns_error_on_api_failure(
+        self, client, pihole_config, backup_record, temp_backup_dir, auth_disabled_settings
+    ):
+        """Should return error on Pi-hole API failure."""
+        url = reverse("restore_backup", args=[backup_record.id])
+
+        with patch("backup.views.RestoreService") as mock_service_class:
+            mock_service = MagicMock()
+            mock_service.restore_backup.side_effect = ConnectionError("Cannot connect to Pi-hole")
+            mock_service_class.return_value = mock_service
+
+            response = client.post(url)
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["success"] is False
+        assert "error" in response_data
+
+
+@pytest.mark.django_db
 class TestDownloadBackupEndpoint:
     """Tests for download_backup endpoint."""
 

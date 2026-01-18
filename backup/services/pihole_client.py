@@ -138,3 +138,48 @@ class PiholeV6Client:
                 response.raise_for_status()
                 return response.content
             raise
+
+    def upload_teleporter_backup(self, backup_data: bytes) -> dict:
+        """
+        Upload a Teleporter backup to Pi-hole.
+
+        Args:
+            backup_data: ZIP file content as bytes
+
+        Returns:
+            API response dict
+
+        Raises:
+            Exception on failure
+        """
+        self._ensure_authenticated()
+
+        try:
+            files = {"file": ("backup.zip", backup_data, "application/zip")}
+            response = self._session.post(
+                self._get_url("/api/teleporter"),
+                headers=self._get_headers(),
+                files=files,
+                verify=self.verify_ssl,
+                timeout=120,
+            )
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                # Session expired, try re-auth and retry
+                logger.info("Session expired, re-authenticating...")
+                self.session_id = None
+                self.authenticate()
+                files = {"file": ("backup.zip", backup_data, "application/zip")}
+                response = self._session.post(
+                    self._get_url("/api/teleporter"),
+                    headers=self._get_headers(),
+                    files=files,
+                    verify=self.verify_ssl,
+                    timeout=120,
+                )
+                response.raise_for_status()
+                return response.json()
+            raise
