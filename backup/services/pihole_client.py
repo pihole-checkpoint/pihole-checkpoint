@@ -1,7 +1,9 @@
 """Pi-hole v6 API client with session-based authentication."""
+
 import logging
-import requests
 from urllib.parse import urljoin
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +12,7 @@ class PiholeV6Client:
     """Client for interacting with Pi-hole v6 API."""
 
     def __init__(self, base_url: str, password: str, verify_ssl: bool = False):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.password = password
         self.verify_ssl = verify_ssl
         self.session_id = None
@@ -28,16 +30,13 @@ class PiholeV6Client:
         """
         try:
             response = self._session.post(
-                self._get_url('/api/auth'),
-                json={'password': self.password},
-                verify=self.verify_ssl,
-                timeout=30
+                self._get_url("/api/auth"), json={"password": self.password}, verify=self.verify_ssl, timeout=30
             )
             response.raise_for_status()
             data = response.json()
 
-            if 'session' in data and 'sid' in data['session']:
-                self.session_id = data['session']['sid']
+            if "session" in data and "sid" in data["session"]:
+                self.session_id = data["session"]["sid"]
                 logger.info("Successfully authenticated with Pi-hole")
                 return True
 
@@ -66,7 +65,7 @@ class PiholeV6Client:
 
     def _get_headers(self) -> dict:
         """Get headers with session ID."""
-        return {'X-FTL-SID': self.session_id} if self.session_id else {}
+        return {"X-FTL-SID": self.session_id} if self.session_id else {}
 
     def test_connection(self) -> dict:
         """
@@ -79,10 +78,7 @@ class PiholeV6Client:
 
         try:
             response = self._session.get(
-                self._get_url('/api/info/version'),
-                headers=self._get_headers(),
-                verify=self.verify_ssl,
-                timeout=30
+                self._get_url("/api/info/version"), headers=self._get_headers(), verify=self.verify_ssl, timeout=30
             )
             response.raise_for_status()
             return response.json()
@@ -93,10 +89,7 @@ class PiholeV6Client:
                 self.session_id = None
                 self.authenticate()
                 response = self._session.get(
-                    self._get_url('/api/info/version'),
-                    headers=self._get_headers(),
-                    verify=self.verify_ssl,
-                    timeout=30
+                    self._get_url("/api/info/version"), headers=self._get_headers(), verify=self.verify_ssl, timeout=30
                 )
                 response.raise_for_status()
                 return response.json()
@@ -112,17 +105,17 @@ class PiholeV6Client:
 
         try:
             response = self._session.get(
-                self._get_url('/api/teleporter'),
+                self._get_url("/api/teleporter"),
                 headers=self._get_headers(),
                 verify=self.verify_ssl,
                 timeout=120,
-                stream=True
+                stream=True,
             )
             response.raise_for_status()
 
             # Verify we got a ZIP file
-            content_type = response.headers.get('Content-Type', '')
-            if 'zip' not in content_type and 'octet-stream' not in content_type:
+            content_type = response.headers.get("Content-Type", "")
+            if "zip" not in content_type and "octet-stream" not in content_type:
                 logger.warning(f"Unexpected content type: {content_type}")
 
             content = response.content
@@ -136,11 +129,11 @@ class PiholeV6Client:
                 self.session_id = None
                 self.authenticate()
                 response = self._session.get(
-                    self._get_url('/api/teleporter'),
+                    self._get_url("/api/teleporter"),
                     headers=self._get_headers(),
                     verify=self.verify_ssl,
                     timeout=120,
-                    stream=True
+                    stream=True,
                 )
                 response.raise_for_status()
                 return response.content

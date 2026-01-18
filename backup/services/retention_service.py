@@ -1,11 +1,12 @@
 """Backup retention management service."""
+
 import logging
 from datetime import timedelta
 from pathlib import Path
 
 from django.utils import timezone
 
-from ..models import PiholeConfig, BackupRecord
+from ..models import BackupRecord, PiholeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -26,24 +27,18 @@ class RetentionService:
         deleted_count = 0
 
         # Get successful backups for this config, ordered by creation time
-        backups = BackupRecord.objects.filter(
-            config=config,
-            status='success'
-        ).order_by('-created_at')
+        backups = BackupRecord.objects.filter(config=config, status="success").order_by("-created_at")
 
         # Delete by count (keep only max_backups)
         if config.max_backups > 0:
-            excess_backups = backups[config.max_backups:]
+            excess_backups = backups[config.max_backups :]
             for backup in excess_backups:
                 logger.info(f"Deleting backup (exceeds max count): {backup.filename}")
                 self._delete_backup(backup)
                 deleted_count += 1
 
         # Refresh queryset after deletions
-        backups = BackupRecord.objects.filter(
-            config=config,
-            status='success'
-        ).order_by('-created_at')
+        backups = BackupRecord.objects.filter(config=config, status="success").order_by("-created_at")
 
         # Delete by age
         if config.max_age_days > 0:
@@ -56,11 +51,7 @@ class RetentionService:
 
         # Clean up failed backup records older than 7 days
         failed_cutoff = timezone.now() - timedelta(days=7)
-        old_failed = BackupRecord.objects.filter(
-            config=config,
-            status='failed',
-            created_at__lt=failed_cutoff
-        )
+        old_failed = BackupRecord.objects.filter(config=config, status="failed", created_at__lt=failed_cutoff)
         failed_count = old_failed.count()
         old_failed.delete()
         if failed_count > 0:

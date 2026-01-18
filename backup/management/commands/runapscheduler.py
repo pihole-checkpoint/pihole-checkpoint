@@ -1,4 +1,5 @@
 """APScheduler management command for running scheduled backups."""
+
 import logging
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -44,11 +45,11 @@ def run_retention_job():
 
 
 class Command(BaseCommand):
-    help = 'Runs APScheduler for backup jobs'
+    help = "Runs APScheduler for backup jobs"
 
     def handle(self, *args, **options):
         scheduler = BlockingScheduler(timezone=settings.TIME_ZONE)
-        scheduler.add_jobstore(DjangoJobStore(), 'default')
+        scheduler.add_jobstore(DjangoJobStore(), "default")
 
         # Clear existing jobs to avoid duplicates
         scheduler.remove_all_jobs()
@@ -60,8 +61,8 @@ class Command(BaseCommand):
         scheduler.add_job(
             run_retention_job,
             trigger=CronTrigger(hour=4, minute=0),
-            id='retention_cleanup',
-            name='Daily retention cleanup',
+            id="retention_cleanup",
+            name="Daily retention cleanup",
             replace_existing=True,
         )
         logger.info("Scheduled retention job for daily at 4:00 AM")
@@ -71,28 +72,28 @@ class Command(BaseCommand):
         scheduler.add_job(
             lambda: self._schedule_backup_jobs(scheduler),
             trigger=IntervalTrigger(minutes=5),
-            id='refresh_schedules',
-            name='Refresh backup schedules',
+            id="refresh_schedules",
+            name="Refresh backup schedules",
             replace_existing=True,
         )
         logger.info("Scheduled schedule refresh every 5 minutes")
 
         logger.info("Starting APScheduler...")
-        self.stdout.write(self.style.SUCCESS('APScheduler started. Press Ctrl+C to exit.'))
+        self.stdout.write(self.style.SUCCESS("APScheduler started. Press Ctrl+C to exit."))
 
         try:
             scheduler.start()
         except KeyboardInterrupt:
             logger.info("Stopping APScheduler...")
             scheduler.shutdown()
-            self.stdout.write(self.style.SUCCESS('APScheduler stopped.'))
+            self.stdout.write(self.style.SUCCESS("APScheduler stopped."))
 
     def _schedule_backup_jobs(self, scheduler):
         """Schedule backup jobs based on current config."""
         configs = PiholeConfig.objects.filter(is_active=True)
 
         for config in configs:
-            job_id = f'backup_{config.id}'
+            job_id = f"backup_{config.id}"
 
             # Remove existing job for this config
             try:
@@ -101,23 +102,18 @@ class Command(BaseCommand):
                 pass
 
             # Create trigger based on frequency
-            if config.backup_frequency == 'hourly':
+            if config.backup_frequency == "hourly":
                 trigger = IntervalTrigger(hours=1)
-                desc = 'every hour'
-            elif config.backup_frequency == 'daily':
+                desc = "every hour"
+            elif config.backup_frequency == "daily":
+                trigger = CronTrigger(hour=config.backup_time.hour, minute=config.backup_time.minute)
+                desc = f"daily at {config.backup_time}"
+            elif config.backup_frequency == "weekly":
                 trigger = CronTrigger(
-                    hour=config.backup_time.hour,
-                    minute=config.backup_time.minute
-                )
-                desc = f'daily at {config.backup_time}'
-            elif config.backup_frequency == 'weekly':
-                trigger = CronTrigger(
-                    day_of_week=config.backup_day,
-                    hour=config.backup_time.hour,
-                    minute=config.backup_time.minute
+                    day_of_week=config.backup_day, hour=config.backup_time.hour, minute=config.backup_time.minute
                 )
                 day_name = config.get_backup_day_display()
-                desc = f'weekly on {day_name} at {config.backup_time}'
+                desc = f"weekly on {day_name} at {config.backup_time}"
             else:
                 continue
 
@@ -126,7 +122,7 @@ class Command(BaseCommand):
                 run_backup_job,
                 trigger=trigger,
                 id=job_id,
-                name=f'Backup {config.name}',
+                name=f"Backup {config.name}",
                 replace_existing=True,
             )
             logger.info(f"Scheduled backup for {config.name}: {desc}")

@@ -1,4 +1,5 @@
 """Backup creation and management service."""
+
 import hashlib
 import logging
 from datetime import datetime
@@ -7,7 +8,7 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
-from ..models import PiholeConfig, BackupRecord
+from ..models import BackupRecord, PiholeConfig
 from .pihole_client import PiholeV6Client
 
 logger = logging.getLogger(__name__)
@@ -24,22 +25,20 @@ class BackupService:
     def _get_client(self) -> PiholeV6Client:
         """Create a Pi-hole client for this config."""
         return PiholeV6Client(
-            base_url=self.config.pihole_url,
-            password=self.config.password,
-            verify_ssl=self.config.verify_ssl
+            base_url=self.config.pihole_url, password=self.config.password, verify_ssl=self.config.verify_ssl
         )
 
     def _generate_filename(self) -> str:
         """Generate a unique filename for the backup."""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        safe_name = self.config.name.replace(' ', '_').lower()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_name = self.config.name.replace(" ", "_").lower()
         return f"pihole_checkpoint_{safe_name}_{timestamp}.zip"
 
     def _calculate_checksum(self, filepath: Path) -> str:
         """Calculate SHA256 checksum of a file."""
         sha256 = hashlib.sha256()
-        with open(filepath, 'rb') as f:
-            for chunk in iter(lambda: f.read(8192), b''):
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()
 
@@ -67,7 +66,7 @@ class BackupService:
             backup_data = client.download_teleporter_backup()
 
             # Save to file
-            with open(filepath, 'wb') as f:
+            with open(filepath, "wb") as f:
                 f.write(backup_data)
 
             # Calculate checksum
@@ -80,14 +79,14 @@ class BackupService:
                 file_path=str(filepath),
                 file_size=len(backup_data),
                 checksum=checksum,
-                status='success',
-                is_manual=is_manual
+                status="success",
+                is_manual=is_manual,
             )
 
             # Update config status
             self.config.last_successful_backup = timezone.now()
-            self.config.last_backup_error = ''
-            self.config.save(update_fields=['last_successful_backup', 'last_backup_error'])
+            self.config.last_backup_error = ""
+            self.config.save(update_fields=["last_successful_backup", "last_backup_error"])
 
             logger.info(f"Backup created successfully: {filename}")
             return record
@@ -103,16 +102,16 @@ class BackupService:
             record = BackupRecord.objects.create(
                 config=self.config,
                 filename=filename,
-                file_path='',
+                file_path="",
                 file_size=0,
-                status='failed',
+                status="failed",
                 error_message=str(e),
-                is_manual=is_manual
+                is_manual=is_manual,
             )
 
             # Update config with error
             self.config.last_backup_error = str(e)
-            self.config.save(update_fields=['last_backup_error'])
+            self.config.save(update_fields=["last_backup_error"])
 
             raise
 
