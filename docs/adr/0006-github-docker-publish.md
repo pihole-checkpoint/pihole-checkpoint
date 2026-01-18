@@ -1,4 +1,4 @@
-# ADR-006: GitHub Actions Docker Image Publishing
+# ADR-0006: GitHub Actions Docker Image Publishing
 
 **Status:** Proposed
 **Date:** 2026-01-18

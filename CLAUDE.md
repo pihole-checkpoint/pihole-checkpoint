@@ -102,3 +102,7 @@ Optional:
 | `backup/forms.py` | `PiholeConfigForm`, `LoginForm` |
 | `backup/middleware/simple_auth.py` | Optional password protection middleware |
 | `config/settings.py` | Django settings with env var configuration |
+
+## Documentation
+
+- [Feature Ideas](docs/IDEAS.md) - Potential features and improvements for the project

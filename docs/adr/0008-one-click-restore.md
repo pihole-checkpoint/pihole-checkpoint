@@ -1,6 +1,6 @@
 # ADR-0008: One-Click Restore
 
-**Status:** Accepted
+**Status:** Implemented
 **Date:** 2026-01-18
 
 ---

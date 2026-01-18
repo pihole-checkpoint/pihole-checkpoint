@@ -1,4 +1,4 @@
-# ADR-004: Manual Backup Trigger with UI Refresh on Completion
+# ADR-0004: Manual Backup Trigger with UI Refresh on Completion
 
 **Status:** Proposed
 **Date:** 2026-01-18

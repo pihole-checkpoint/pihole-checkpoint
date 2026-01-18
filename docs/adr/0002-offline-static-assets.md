@@ -1,4 +1,4 @@
-# ADR-002: Offline Static Assets (Remove CDN Dependencies)
+# ADR-0002: Offline Static Assets (Remove CDN Dependencies)
 
 **Status:** Accepted
 **Date:** 2026-01-18

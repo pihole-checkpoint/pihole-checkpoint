@@ -1,4 +1,4 @@
-# ADR-003: Single Container Architecture
+# ADR-0003: Single Container Architecture
 
 **Status:** Implemented
 **Date:** 2026-01-18

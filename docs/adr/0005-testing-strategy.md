@@ -1,4 +1,4 @@
-# ADR-005: Testing Strategy and Workflow
+# ADR-0005: Testing Strategy and Workflow
 
 **Status:** Proposed
 **Date:** 2026-01-18
