@@ -1,12 +1,10 @@
 """Shared fixtures for Pi-hole Checkpoint tests."""
-import os
 import tempfile
 from datetime import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.conf import settings
 from django.test import Client
 
 from backup.models import BackupRecord, PiholeConfig
