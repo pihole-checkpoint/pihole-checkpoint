@@ -1,0 +1,183 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Settings - Pi-hole Checkpoint{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-gear"></i> Settings</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Pi-hole Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="configForm">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">A friendly name for this Pi-hole instance</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_pihole_url" class="form-label">Pi-hole URL</label>
+                        {{ form.pihole_url }}
+                        {% if form.pihole_url.errors %}
+                        <div class="invalid-feedback d-block">{{ form.pihole_url.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">e.g., https://192.168.1.100 or http://pi.hole</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label">Pi-hole Password</label>
+                        {{ form.password }}
+                        {% if form.password.errors %}
+                        <div class="invalid-feedback d-block">{{ form.password.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Your Pi-hole web interface password</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.verify_ssl }}
+                            <label class="form-check-label" for="id_verify_ssl">Verify SSL Certificate</label>
+                        </div>
+                        <div class="form-text">Disable for self-signed certificates</div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-3">Backup Schedule</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="id_backup_frequency" class="form-label">Frequency</label>
+                            {{ form.backup_frequency }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="id_backup_time" class="form-label">Time</label>
+                            {{ form.backup_time }}
+                            <div class="form-text">For daily/weekly</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="id_backup_day" class="form-label">Day</label>
+                            {{ form.backup_day }}
+                            <div class="form-text">For weekly</div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-3">Retention Policy</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_max_backups" class="form-label">Maximum Backups</label>
+                            {{ form.max_backups }}
+                            <div class="form-text">Keep this many backups (0 = unlimited)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_max_age_days" class="form-label">Maximum Age (days)</label>
+                            {{ form.max_age_days }}
+                            <div class="form-text">Delete backups older than this (0 = no limit)</div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="id_is_active">Enable Scheduled Backups</label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> Save Settings
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="testConnection()">
+                            <i class="bi bi-wifi"></i> Test Connection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Help</h5>
+            </div>
+            <div class="card-body">
+                <h6>Pi-hole URL</h6>
+                <p class="small">Enter the URL to your Pi-hole web interface. This should include the protocol (http:// or https://) but not the /admin path.</p>
+
+                <h6>Password</h6>
+                <p class="small">This is the password you use to log into the Pi-hole web interface. It's stored encrypted.</p>
+
+                <h6>SSL Verification</h6>
+                <p class="small">If your Pi-hole uses a self-signed certificate, disable SSL verification to allow connections.</p>
+
+                <h6>Backup Frequency</h6>
+                <ul class="small">
+                    <li><strong>Hourly:</strong> Every hour</li>
+                    <li><strong>Daily:</strong> Once per day at specified time</li>
+                    <li><strong>Weekly:</strong> Once per week on specified day/time</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function testConnection() {
+    const url = document.getElementById('id_pihole_url').value;
+    const password = document.getElementById('id_password').value;
+    const verifySsl = document.getElementById('id_verify_ssl').checked;
+
+    if (!url || !password) {
+        showToast('Please enter URL and password first', 'warning');
+        return;
+    }
+
+    const btn = event.target;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing...';
+
+    try {
+        const response = await fetch('{% url "test_connection" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({url, password, verify_ssl: verifySsl})
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(`Connection successful! Pi-hole v${data.version || 'unknown'}`, 'success');
+        } else {
+            showToast(data.error || 'Connection failed', 'danger');
+        }
+    } catch (error) {
+        showToast('Error testing connection: ' + error.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+</script>
+{% endblock %}

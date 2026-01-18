@@ -1,0 +1,22 @@
+services:
+  pihole-checkpoint:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-long-random-string}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-change-this-key-to-32-chars!}
+      - TIME_ZONE=${TIME_ZONE:-UTC}
+      - REQUIRE_AUTH=${REQUIRE_AUTH:-false}
+      - APP_PASSWORD=${APP_PASSWORD:-}
+      - DEBUG=${DEBUG:-false}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

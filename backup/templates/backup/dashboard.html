@@ -1,0 +1,204 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Dashboard - Pi-hole Checkpoint{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
+    {% if config %}
+    <button class="btn btn-primary" id="backupNowBtn" onclick="createBackup()">
+        <i class="bi bi-cloud-download"></i> Backup Now
+    </button>
+    {% endif %}
+</div>
+
+{% csrf_token %}
+
+{% if not config %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    No Pi-hole configured yet. <a href="{% url 'settings' %}">Configure your Pi-hole</a> to get started.
+</div>
+{% else %}
+
+<!-- Status Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-muted">Pi-hole Status</h5>
+                <div class="d-flex align-items-center">
+                    {% if config.is_active %}
+                    <span class="badge bg-success status-badge me-2">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary status-badge me-2">Inactive</span>
+                    {% endif %}
+                    <span>{{ config.name }}</span>
+                </div>
+                <small class="text-muted">{{ config.pihole_url }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-muted">Last Backup</h5>
+                {% if config.last_successful_backup %}
+                <p class="mb-0">{{ config.last_successful_backup|date:"M d, Y H:i" }}</p>
+                <small class="text-muted">{{ config.last_successful_backup|timesince }} ago</small>
+                {% else %}
+                <p class="mb-0 text-muted">No backups yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-muted">Schedule</h5>
+                <p class="mb-0">{{ config.get_backup_frequency_display }}</p>
+                {% if config.backup_frequency == 'daily' or config.backup_frequency == 'weekly' %}
+                <small class="text-muted">at {{ config.backup_time|time:"H:i" }}</small>
+                {% endif %}
+                {% if config.backup_frequency == 'weekly' %}
+                <small class="text-muted">on {{ config.get_backup_day_display }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if config.last_backup_error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-circle"></i>
+    <strong>Last backup error:</strong> {{ config.last_backup_error }}
+</div>
+{% endif %}
+
+<!-- Backup History -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-archive"></i> Backup History</h5>
+        <span class="badge bg-secondary">{{ backups.count }} backups</span>
+    </div>
+    <div class="card-body p-0">
+        {% if backups %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 backup-table">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Size</th>
+                        <th>Status</th>
+                        <th>Type</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for backup in backups %}
+                    <tr id="backup-{{ backup.id }}">
+                        <td>
+                            <i class="bi bi-file-earmark-zip text-primary"></i>
+                            {{ backup.filename }}
+                        </td>
+                        <td>{{ backup.file_size|filesizeformat }}</td>
+                        <td>
+                            {% if backup.status == 'success' %}
+                            <span class="badge bg-success">Success</span>
+                            {% else %}
+                            <span class="badge bg-danger" title="{{ backup.error_message }}">Failed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if backup.is_manual %}
+                            <span class="badge bg-info">Manual</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Scheduled</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ backup.created_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            {% if backup.status == 'success' %}
+                            <a href="{% url 'download_backup' backup.id %}" class="btn btn-sm btn-outline-primary" title="Download">
+                                <i class="bi bi-download"></i>
+                            </a>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteBackup({{ backup.id }})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            <i class="bi bi-inbox display-4"></i>
+            <p class="mt-2">No backups yet. Click "Backup Now" to create your first backup.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function createBackup() {
+    const btn = document.getElementById('backupNowBtn');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
+
+    try {
+        const response = await fetch('{% url "create_backup" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Backup created successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Backup failed', 'danger');
+        }
+    } catch (error) {
+        showToast('Error creating backup: ' + error.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
+
+async function deleteBackup(id) {
+    if (!confirm('Are you sure you want to delete this backup?')) return;
+
+    try {
+        const response = await fetch(`/backup/${id}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Backup deleted', 'success');
+            document.getElementById(`backup-${id}`).remove();
+        } else {
+            showToast(data.error || 'Delete failed', 'danger');
+        }
+    } catch (error) {
+        showToast('Error deleting backup: ' + error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

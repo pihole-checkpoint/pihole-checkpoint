@@ -1,0 +1,31 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Login - Pi-hole Checkpoint{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card mt-5">
+            <div class="card-header text-center">
+                <h4 class="mb-0"><i class="bi bi-shield-lock"></i> Login</h4>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

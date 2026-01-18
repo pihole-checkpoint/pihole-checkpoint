@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pi-hole Checkpoint{% endblock %}</title>
+    <link href="{% static 'backup/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'backup/css/bootstrap-icons.css' %}" rel="stylesheet">
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .status-badge {
+            font-size: 0.875rem;
+        }
+        .backup-table .btn {
+            padding: 0.25rem 0.5rem;
+        }
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1100;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-shield-check"></i> Pi-hole Checkpoint
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+                {% if request.session.authenticated %}
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'logout' %}">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <main class="container py-4">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container py-3 text-center text-muted">
+        <small>Pi-hole Checkpoint &copy; 2024</small>
+    </footer>
+
+    <script src="{% static 'backup/js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-bg-${type} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            container.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
+        }
+
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                   document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1];
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

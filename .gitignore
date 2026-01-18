@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+staticfiles/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data directories (mounted volumes)
+data/
+backups/
+
+# macOS
+.DS_Store
+
+# Coverage
+htmlcov/
+.coverage
