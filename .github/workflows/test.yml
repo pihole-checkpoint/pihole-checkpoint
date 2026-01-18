@@ -34,7 +34,7 @@ jobs:
       - name: Run tests with coverage
         env:
           SECRET_KEY: 'test-secret-key-for-ci'
-          FIELD_ENCRYPTION_KEY: 'test-encryption-key-32char'
+          FIELD_ENCRYPTION_KEY: 'sk5MxSJS_TUO6qcPVvTorSnwS1iPupauxmRrTCuQVts='
         run: |
           pytest --cov=backup --cov-report=xml --cov-report=term-missing
 
