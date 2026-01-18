@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="backup/static/backup/img/logo.png" alt="Pi-hole Checkpoint" width="200">
+</p>
+
 # Pi-hole Checkpoint
 
 A web application for backing up Pi-hole v6 instances via the Teleporter API. Runs as a single Docker container with a web UI and automated scheduler.
