@@ -5,7 +5,7 @@ from .models import BackupRecord, PiholeConfig
 
 @admin.register(PiholeConfig)
 class PiholeConfigAdmin(admin.ModelAdmin):
-    list_display = ["name", "pihole_url", "backup_frequency", "is_active", "last_successful_backup"]
+    list_display = ["name", "backup_frequency", "is_active", "last_successful_backup"]
     list_filter = ["is_active", "backup_frequency"]
     readonly_fields = ["last_successful_backup", "last_backup_error", "created_at", "updated_at"]
 
