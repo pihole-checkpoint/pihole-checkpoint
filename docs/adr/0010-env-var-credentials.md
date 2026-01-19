@@ -1,6 +1,6 @@
 # ADR-0010: Replace Encrypted Database Fields with Environment Variables
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-01-18
 
 ---

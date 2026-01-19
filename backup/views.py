@@ -1,4 +1,3 @@
-import json
 import logging
 
 from django.conf import settings
@@ -10,6 +9,7 @@ from django.views.decorators.http import require_POST
 from .forms import LoginForm, PiholeConfigForm
 from .models import BackupRecord, PiholeConfig
 from .services.backup_service import BackupService
+from .services.credential_service import CredentialService
 from .services.pihole_client import PiholeV6Client
 from .services.restore_service import RestoreService
 
@@ -32,7 +32,7 @@ def dashboard(request):
 
 
 def settings_view(request):
-    """Settings view for configuring Pi-hole connection."""
+    """Settings view for configuring backup schedule."""
     config = PiholeConfig.objects.first()
 
     if request.method == "POST":
@@ -44,29 +44,31 @@ def settings_view(request):
     else:
         form = PiholeConfigForm(instance=config)
 
+    # Get Pi-hole credential status from environment
+    credential_status = CredentialService.get_status()
+
     return render(
         request,
         "backup/settings.html",
         {
             "form": form,
             "config": config,
+            "credential_status": credential_status,
         },
     )
 
 
 @require_POST
 def test_connection(request):
-    """AJAX endpoint to test Pi-hole connection."""
+    """AJAX endpoint to test Pi-hole connection using environment credentials."""
     try:
-        data = json.loads(request.body)
-        url = data.get("url")
-        password = data.get("password")
-        verify_ssl = data.get("verify_ssl", False)
+        creds = CredentialService.get_credentials()
 
-        if not url or not password:
-            return JsonResponse({"success": False, "error": "URL and password required"})
-
-        client = PiholeV6Client(url, password, verify_ssl)
+        client = PiholeV6Client(
+            base_url=creds["url"],
+            password=creds["password"],
+            verify_ssl=creds["verify_ssl"],
+        )
         version_info = client.test_connection()
 
         version = version_info.get("version", {}).get("core", {}).get("local", {}).get("version", "unknown")

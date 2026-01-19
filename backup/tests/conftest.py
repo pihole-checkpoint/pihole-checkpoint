@@ -39,14 +39,20 @@ def authenticated_client(client):
     return client
 
 
+@pytest.fixture(autouse=True)
+def pihole_credentials(settings):
+    """Configure Pi-hole credentials from environment for tests."""
+    settings.PIHOLE_URL = "https://pihole.local"
+    settings.PIHOLE_PASSWORD = "testpassword123"
+    settings.PIHOLE_VERIFY_SSL = False
+    return settings
+
+
 @pytest.fixture
 def pihole_config(db):
     """Create a test PiholeConfig instance."""
     return PiholeConfig.objects.create(
         name="Test Pi-hole",
-        pihole_url="https://pihole.local",
-        password="testpassword123",
-        verify_ssl=False,
         backup_frequency="daily",
         backup_time=time(3, 0),
         backup_day=0,
@@ -61,9 +67,6 @@ def inactive_config(db):
     """Create an inactive PiholeConfig instance."""
     return PiholeConfig.objects.create(
         name="Inactive Pi-hole",
-        pihole_url="https://pihole-inactive.local",
-        password="testpassword123",
-        verify_ssl=False,
         backup_frequency="daily",
         backup_time=time(3, 0),
         is_active=False,
