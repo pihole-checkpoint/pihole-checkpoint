@@ -2,6 +2,7 @@
 
 import logging
 import os
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -97,20 +98,30 @@ class NotificationSettings:
         return [p["provider"] for p in self.providers]
 
 
-# Singleton instance
+# Singleton instance (thread-safe)
 _settings: NotificationSettings | None = None
+_settings_lock = threading.Lock()
 
 
 def get_notification_settings() -> NotificationSettings:
-    """Get notification settings (cached singleton)."""
+    """Get notification settings (cached singleton, thread-safe)."""
     global _settings
-    if _settings is None:
-        _settings = NotificationSettings()
-    return _settings
+
+    # Fast path: already initialized
+    if _settings is not None:
+        return _settings
+
+    # Slow path: need to initialize with lock
+    with _settings_lock:
+        # Double-check after acquiring lock
+        if _settings is None:
+            _settings = NotificationSettings()
+        return _settings
 
 
 def reload_notification_settings() -> NotificationSettings:
     """Reload notification settings from environment (useful for testing)."""
     global _settings
-    _settings = NotificationSettings()
-    return _settings
+    with _settings_lock:
+        _settings = NotificationSettings()
+        return _settings

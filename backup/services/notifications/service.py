@@ -1,5 +1,6 @@
 """Notification service for orchestrating notifications across providers."""
 
+import atexit
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -26,8 +27,25 @@ class NotificationService:
     """Manages sending notifications across multiple providers."""
 
     def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=5)
+        self._executor: ThreadPoolExecutor | None = None
         self.settings = get_notification_settings()
+        self._shutdown_registered = False
+
+    @property
+    def executor(self) -> ThreadPoolExecutor:
+        """Lazily create executor on first use."""
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=5)
+            if not self._shutdown_registered:
+                atexit.register(self._shutdown)
+                self._shutdown_registered = True
+        return self._executor
+
+    def _shutdown(self):
+        """Gracefully shutdown the executor."""
+        if self._executor is not None:
+            self._executor.shutdown(wait=True, cancel_futures=False)
+            self._executor = None
 
     def send_notification(self, payload: NotificationPayload) -> None:
         """

@@ -3,6 +3,7 @@ Django settings for pihole-checkpoint project.
 """
 
 import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,11 +12,43 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-change-me-in-production")
-
 DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+
+def get_or_create_secret_key() -> str:
+    """Get secret key from env or generate and persist one."""
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key
+
+    # Check for persisted key
+    key_file = BASE_DIR / "data" / ".secret_key"
+    if key_file.exists():
+        return key_file.read_text().strip()
+
+    # Generate new key
+    key = secrets.token_urlsafe(50)
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    key_file.write_text(key)
+    try:
+        key_file.chmod(0o600)  # Restrict permissions
+    except OSError:
+        pass  # May fail on some filesystems (e.g., Windows)
+    return key
+
+
+SECRET_KEY = get_or_create_secret_key()
+
+# Parse ALLOWED_HOSTS with sensible defaults
+_allowed_hosts_env = os.environ.get("ALLOWED_HOSTS", "")
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
+elif DEBUG:
+    # Allow all hosts only in debug mode
+    ALLOWED_HOSTS = ["*"]
+else:
+    # Default to localhost only in production
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

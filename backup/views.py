@@ -121,8 +121,23 @@ def create_backup(request):
 @require_POST
 def delete_backup(request, backup_id):
     """AJAX endpoint to delete a backup."""
+    from pathlib import Path
+
     record = get_object_or_404(BackupRecord, id=backup_id)
     config = record.config
+
+    # Handle orphaned backup records (config was deleted)
+    if not config:
+        logger.warning(f"Deleting orphaned backup record: {record.filename}")
+        if record.file_path:
+            filepath = Path(record.file_path)
+            if filepath.exists():
+                try:
+                    filepath.unlink()
+                except OSError as e:
+                    logger.error(f"Failed to delete orphaned file: {e}")
+        record.delete()
+        return JsonResponse({"success": True})
 
     try:
         service = BackupService(config)
@@ -138,6 +153,9 @@ def restore_backup(request, backup_id):
     """AJAX endpoint to restore a backup to Pi-hole."""
     record = get_object_or_404(BackupRecord, id=backup_id)
     config = record.config
+
+    if not config:
+        return JsonResponse({"success": False, "error": "Cannot restore: Pi-hole configuration no longer exists"})
 
     try:
         service = RestoreService(config)
@@ -162,6 +180,10 @@ def download_backup(request, backup_id):
     record = get_object_or_404(BackupRecord, id=backup_id)
     config = record.config
 
+    if not config:
+        messages.error(request, "Pi-hole configuration no longer exists")
+        return redirect("dashboard")
+
     service = BackupService(config)
     filepath = service.get_backup_file(record)
 
@@ -169,18 +191,54 @@ def download_backup(request, backup_id):
         messages.error(request, "Backup file not found")
         return redirect("dashboard")
 
-    return FileResponse(open(filepath, "rb"), as_attachment=True, filename=record.filename)
+    # Use Path.open() which FileResponse will properly close
+    # FileResponse takes ownership of the file object and closes it when done
+    response = FileResponse(
+        filepath.open("rb"),
+        as_attachment=True,
+        filename=record.filename,
+    )
+    # Set content length for proper download progress
+    response["Content-Length"] = filepath.stat().st_size
+    return response
+
+
+def _get_client_ip(request):
+    """Get client IP from request."""
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
 
 
 def login_view(request):
-    """Login view for optional authentication."""
+    """Login view for optional authentication with rate limiting."""
+    from django.core.cache import cache
+    from django.http import HttpResponse
+
     if request.method == "POST":
+        client_ip = _get_client_ip(request)
+        cache_key = f"login_attempts_{client_ip}"
+
+        # Check rate limit: 5 attempts per minute
+        attempts = cache.get(cache_key, 0)
+        if attempts >= 5:
+            return HttpResponse(
+                "Too many login attempts. Please wait a minute.",
+                status=429,
+                content_type="text/plain",
+            )
+
         form = LoginForm(request.POST)
         if form.is_valid():
             if form.cleaned_data["password"] == settings.APP_PASSWORD:
+                # Clear attempts on success
+                cache.delete(cache_key)
                 request.session["authenticated"] = True
                 return redirect("dashboard")
             else:
+                # Increment failed attempts
+                cache.set(cache_key, attempts + 1, timeout=60)
                 return render(request, "backup/login.html", {"error": "Invalid password"})
     else:
         form = LoginForm()
@@ -199,8 +257,16 @@ def health_check(request):
     import subprocess
 
     # Check if scheduler process is running
-    result = subprocess.run(["pgrep", "-f", "runapscheduler"], capture_output=True)
-    scheduler_running = result.returncode == 0
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "runapscheduler"],
+            capture_output=True,
+            timeout=5,  # 5 second timeout
+        )
+        scheduler_running = result.returncode == 0
+    except subprocess.TimeoutExpired:
+        # If pgrep hangs, assume scheduler is having issues
+        scheduler_running = False
 
     status = {
         "web": "ok",

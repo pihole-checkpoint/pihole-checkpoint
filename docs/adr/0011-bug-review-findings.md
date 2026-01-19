@@ -1,6 +1,6 @@
 # ADR-0011: Bug Review Findings and Remediation Plan
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-01-18
 **Deciders:** Project Owner
 
@@ -35,7 +35,7 @@ These issues could cause data loss, security breaches, or application failures.
 | | |
 |---|---|
 | **Location** | `backup/views.py:160-172` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Critical |
 
 **Description:**
@@ -126,7 +126,7 @@ def download_backup(request, backup_id):
 | | |
 |---|---|
 | **Location** | `backup/services/pihole_client.py:21-23` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Critical |
 
 **Description:**
@@ -186,7 +186,7 @@ def _get_url(self, endpoint: str) -> str:
 | | |
 |---|---|
 | **Location** | `backup/management/commands/runapscheduler.py:19-32, 120-127` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Critical |
 
 **Description:**
@@ -286,7 +286,7 @@ These issues could cause unexpected behavior or minor security concerns.
 | | |
 |---|---|
 | **Location** | `backup/management/commands/runapscheduler.py:99-102` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -332,7 +332,7 @@ except Exception as e:
 | | |
 |---|---|
 | **Location** | `backup/services/notifications/service.py:28-29` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -409,7 +409,7 @@ class NotificationService:
 | | |
 |---|---|
 | **Location** | `config/settings.py:14` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -477,7 +477,7 @@ SECRET_KEY = get_or_create_secret_key()
 | | |
 |---|---|
 | **Location** | `config/settings.py:18` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -525,7 +525,7 @@ ALLOWED_HOSTS=
 | | |
 |---|---|
 | **Location** | `backup/views.py:121-133` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -611,7 +611,7 @@ def restore_backup(request, backup_id):
 | | |
 |---|---|
 | **Location** | `backup/services/backup_service.py:38-42` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -665,7 +665,7 @@ def _generate_filename(self) -> str:
 | | |
 |---|---|
 | **Location** | `backup/services/retention_service.py:65-74` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -742,7 +742,7 @@ def enforce_retention(self, config: PiholeConfig) -> int:
 | | |
 |---|---|
 | **Location** | `backup/services/notifications/config.py:104-109` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -806,7 +806,7 @@ def reload_notification_settings() -> NotificationSettings:
 | | |
 |---|---|
 | **Location** | `backup/services/backup_service.py:40-41` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Warning |
 
 **Description:**
@@ -877,7 +877,7 @@ Lower priority improvements for robustness.
 | | |
 |---|---|
 | **Location** | `backup/management/commands/runapscheduler.py:105-107` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Suggestion |
 
 **Description:**
@@ -922,7 +922,7 @@ if config.backup_frequency == "hourly":
 | | |
 |---|---|
 | **Location** | `backup/views.py:197-202` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Suggestion |
 
 **Description:**
@@ -985,7 +985,7 @@ def health_check(request):
 | | |
 |---|---|
 | **Location** | `backup/views.py:175-188` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Suggestion |
 
 **Description:**
@@ -1075,7 +1075,7 @@ def login_view(request):
 | | |
 |---|---|
 | **Location** | `entrypoint.sh:12-14` |
-| **Status** | [ ] Open |
+| **Status** | [x] Fixed |
 | **Priority** | Suggestion |
 
 **Description:**
@@ -1253,22 +1253,22 @@ Track all identified bugs in this ADR. Prioritize fixes in the following order:
 
 | Bug | Priority | Status | Fixed In |
 |-----|----------|--------|----------|
-| 1 | Critical | Open | - |
-| 2 | Critical | Open | - |
-| 3 | Critical | Open | - |
-| 4 | Warning | Open | - |
-| 5 | Warning | Open | - |
-| 6 | Warning | Open | - |
-| 7 | Warning | Open | - |
-| 8 | Warning | Open | - |
-| 9 | Warning | Open | - |
-| 10 | Warning | Open | - |
-| 11 | Warning | Open | - |
-| 12 | Warning | Open | - |
-| 13 | Suggestion | Open | - |
-| 14 | Suggestion | Open | - |
-| 15 | Suggestion | Open | - |
-| 16 | Suggestion | Open | - |
+| 1 | Critical | Fixed | fix/adr-11-bug-remediation |
+| 2 | Critical | Fixed | fix/adr-11-bug-remediation |
+| 3 | Critical | Fixed | fix/adr-11-bug-remediation |
+| 4 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 5 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 6 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 7 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 8 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 9 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 10 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 11 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 12 | Warning | Fixed | fix/adr-11-bug-remediation |
+| 13 | Suggestion | Fixed | fix/adr-11-bug-remediation |
+| 14 | Suggestion | Fixed | fix/adr-11-bug-remediation |
+| 15 | Suggestion | Fixed | fix/adr-11-bug-remediation |
+| 16 | Suggestion | Fixed | fix/adr-11-bug-remediation |
 
 ---
 

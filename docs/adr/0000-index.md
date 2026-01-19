@@ -30,13 +30,13 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0008](0008-one-click-restore.md) | One-Click Restore | Implemented | 2026-01-18 |
 | [ADR-0009](0009-backup-failure-notifications.md) | Backup Failure Notifications | Implemented | 2026-01-18 |
 | [ADR-0010](0010-env-var-credentials.md) | Replace Encrypted Database Fields with Environment Variables | Implemented | 2026-01-18 |
-| [ADR-0011](0011-bug-review-findings.md) | Bug Review Findings and Remediation Plan | Proposed | 2026-01-18 |
+| [ADR-0011](0011-bug-review-findings.md) | Bug Review Findings and Remediation Plan | Implemented | 2026-01-18 |
 
 ---
 
 ## Summary by Status
 
-### Implemented (9)
+### Implemented (10)
 - ADR-0001: Pi-hole v6 Backup Application Architecture
 - ADR-0002: Offline Static Assets (Remove CDN Dependencies)
 - ADR-0003: Single Container Architecture
@@ -46,10 +46,10 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0008: One-Click Restore
 - ADR-0009: Backup Failure Notifications
 - ADR-0010: Replace Encrypted Database Fields with Environment Variables
-
-### Proposed (2)
-- ADR-0004: Manual Backup Trigger with UI Refresh on Completion
 - ADR-0011: Bug Review Findings and Remediation Plan
+
+### Proposed (1)
+- ADR-0004: Manual Backup Trigger with UI Refresh on Completion
 
 ---
 

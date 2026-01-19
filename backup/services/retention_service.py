@@ -34,8 +34,9 @@ class RetentionService:
             excess_backups = backups[config.max_backups :]
             for backup in excess_backups:
                 logger.info(f"Deleting backup (exceeds max count): {backup.filename}")
-                self._delete_backup(backup)
-                deleted_count += 1
+                if self._delete_backup(backup):
+                    deleted_count += 1
+                # If deletion failed, it will be retried next run
 
         # Refresh queryset after deletions
         backups = BackupRecord.objects.filter(config=config, status="success").order_by("-created_at")
@@ -46,8 +47,9 @@ class RetentionService:
             old_backups = backups.filter(created_at__lt=cutoff)
             for backup in old_backups:
                 logger.info(f"Deleting backup (exceeds max age): {backup.filename}")
-                self._delete_backup(backup)
-                deleted_count += 1
+                if self._delete_backup(backup):
+                    deleted_count += 1
+                # If deletion failed, it will be retried next run
 
         # Clean up failed backup records older than 7 days
         failed_cutoff = timezone.now() - timedelta(days=7)
@@ -62,8 +64,12 @@ class RetentionService:
 
         return deleted_count
 
-    def _delete_backup(self, backup: BackupRecord):
-        """Delete a backup file and record."""
+    def _delete_backup(self, backup: BackupRecord) -> bool:
+        """
+        Delete a backup file and record.
+
+        Returns True if successfully deleted, False otherwise.
+        """
         if backup.file_path:
             filepath = Path(backup.file_path)
             if filepath.exists():
@@ -71,7 +77,12 @@ class RetentionService:
                     filepath.unlink()
                 except OSError as e:
                     logger.error(f"Failed to delete file {filepath}: {e}")
+                    # Don't delete DB record if file deletion failed
+                    return False
+
+        # File deleted (or didn't exist), safe to delete record
         backup.delete()
+        return True
 
     def enforce_all(self) -> int:
         """

@@ -2,6 +2,8 @@
 
 import hashlib
 import logging
+import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -38,8 +40,19 @@ class BackupService:
     def _generate_filename(self) -> str:
         """Generate a unique filename for the backup."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name = self.config.name.replace(" ", "_").lower()
-        return f"pihole_checkpoint_{safe_name}_{timestamp}.zip"
+        # Add short UUID suffix for uniqueness (prevents collision within same second)
+        unique_suffix = uuid.uuid4().hex[:8]
+
+        # Sanitize name: keep only alphanumeric, dash, underscore
+        safe_name = re.sub(r"[^\w\-]", "_", self.config.name.lower())
+        # Collapse multiple underscores
+        safe_name = re.sub(r"_+", "_", safe_name)
+        # Trim underscores from ends
+        safe_name = safe_name.strip("_")
+        # Fallback if name becomes empty
+        safe_name = safe_name or "pihole"
+
+        return f"pihole_checkpoint_{safe_name}_{timestamp}_{unique_suffix}.zip"
 
     def _calculate_checksum(self, filepath: Path) -> str:
         """Calculate SHA256 checksum of a file."""

@@ -117,8 +117,8 @@ class TestRunRetentionJob:
 class TestScheduleBackupJobs:
     """Tests for schedule_backup_jobs() function."""
 
-    def test_hourly_config_uses_interval_trigger(self, temp_backup_dir):
-        """Hourly backup config should use IntervalTrigger."""
+    def test_hourly_config_uses_cron_trigger(self, temp_backup_dir):
+        """Hourly backup config should use CronTrigger for consistent timing."""
         HourlyPiholeConfigFactory()
 
         mock_scheduler = MagicMock()
@@ -132,7 +132,8 @@ class TestScheduleBackupJobs:
         call_kwargs = mock_scheduler.add_job.call_args_list[-1].kwargs
         trigger = call_kwargs.get("trigger")
 
-        assert isinstance(trigger, IntervalTrigger)
+        # Hourly backups now use CronTrigger for consistent timing (top of each hour)
+        assert isinstance(trigger, CronTrigger)
 
     def test_daily_config_uses_cron_trigger(self, temp_backup_dir):
         """Daily backup config should use CronTrigger."""
