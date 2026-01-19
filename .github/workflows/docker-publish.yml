@@ -1,26 +1,26 @@
-name: Build and Publish Docker Image
+name: Publish Docker Image
 
 on:
-  # Trigger after test workflow completes on main/master
+  # Trigger after build workflow completes on main/master
   workflow_run:
-    workflows: ["Tests"]
+    workflows: ["Docker Build"]
     types: [completed]
     branches: [main, master]
 
-  # Tag pushes trigger directly (tests run in parallel via test.yml)
+  # Tag pushes trigger directly
   push:
     tags:
       - 'v*'
 
-  # Manual trigger (bypasses tests - use with caution)
+  # Manual trigger
   workflow_dispatch:
     inputs:
       tag:
         description: 'Custom image tag (optional)'
         required: false
         type: string
-      skip_test_check:
-        description: 'Skip test requirement (emergency only)'
+      skip_build_check:
+        description: 'Skip build requirement (emergency only)'
         type: boolean
         default: false
 
@@ -30,31 +30,31 @@ env:
 
 jobs:
   # Gate job - checks if we should proceed
-  check-tests:
+  check-build:
     runs-on: ubuntu-latest
     outputs:
-      should-build: ${{ steps.check.outputs.should-build }}
+      should-publish: ${{ steps.check.outputs.should-publish }}
     steps:
-      - name: Determine if build should proceed
+      - name: Determine if publish should proceed
         id: check
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "should-build=true" >> $GITHUB_OUTPUT
-            echo "Manual trigger - proceeding with build"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "Manual trigger - proceeding with publish"
           elif [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "should-build=true" >> $GITHUB_OUTPUT
-            echo "Tag push - proceeding with build"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "Tag push - proceeding with publish"
           elif [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
-            echo "should-build=true" >> $GITHUB_OUTPUT
-            echo "Tests passed - proceeding with build"
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "Build succeeded - proceeding with publish"
           else
-            echo "should-build=false" >> $GITHUB_OUTPUT
-            echo "Tests failed or skipped - aborting build"
+            echo "should-publish=false" >> $GITHUB_OUTPUT
+            echo "Build failed or skipped - aborting publish"
           fi
 
-  build-and-push:
-    needs: check-tests
-    if: needs.check-tests.outputs.should-build == 'true'
+  publish:
+    needs: check-build
+    if: needs.check-build.outputs.should-publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -66,7 +66,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # For workflow_run, checkout the commit that triggered tests
+          # For workflow_run, checkout the commit that triggered build
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up QEMU
