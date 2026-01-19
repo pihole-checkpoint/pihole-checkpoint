@@ -11,74 +11,65 @@ from backup.tests.factories import BackupRecordFactory
 
 @pytest.mark.django_db
 class TestTestConnectionEndpoint:
-    """Tests for test_connection API endpoint."""
+    """Tests for test_connection API endpoint.
 
-    def test_success_returns_version(self, client, auth_disabled_settings):
+    Note: test_connection now uses credentials from environment variables
+    (configured via the pihole_credentials fixture) instead of request body.
+    """
+
+    def test_success_returns_version(self, client, auth_disabled_settings, settings):
         """Successful test connection should return version info."""
         url = reverse("test_connection")
-        data = {
-            "url": "https://pihole.local",
-            "password": "testpassword",
-            "verify_ssl": False,
-        }
 
         with patch("backup.views.PiholeV6Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.test_connection.return_value = {"version": {"core": {"local": {"version": "v6.0"}}}}
             mock_client_class.return_value = mock_client
 
-            response = client.post(
-                url,
-                json.dumps(data),
-                content_type="application/json",
-            )
+            response = client.post(url)
 
         assert response.status_code == 200
         response_data = response.json()
         assert response_data["success"] is True
         assert response_data["version"] == "v6.0"
 
-    def test_requires_url_and_password(self, client, auth_disabled_settings):
-        """Should require both url and password."""
+        # Verify client was created with env credentials
+        mock_client_class.assert_called_once_with(
+            settings.PIHOLE_URL,
+            settings.PIHOLE_PASSWORD,
+            settings.PIHOLE_VERIFY_SSL,
+        )
+
+    def test_requires_env_credentials(self, client, auth_disabled_settings, settings):
+        """Should require PIHOLE_URL and PIHOLE_PASSWORD environment variables."""
         url = reverse("test_connection")
 
         # Missing password
-        response = client.post(
-            url,
-            json.dumps({"url": "https://pihole.local"}),
-            content_type="application/json",
-        )
+        settings.PIHOLE_URL = "https://pihole.local"
+        settings.PIHOLE_PASSWORD = ""
+
+        response = client.post(url)
         assert response.json()["success"] is False
-        assert "required" in response.json()["error"].lower()
+        assert "PIHOLE_PASSWORD" in response.json()["error"]
 
         # Missing URL
-        response = client.post(
-            url,
-            json.dumps({"password": "test"}),
-            content_type="application/json",
-        )
+        settings.PIHOLE_URL = ""
+        settings.PIHOLE_PASSWORD = "testpassword"
+
+        response = client.post(url)
         assert response.json()["success"] is False
-        assert "required" in response.json()["error"].lower()
+        assert "PIHOLE_URL" in response.json()["error"]
 
     def test_returns_auth_error_on_401(self, client, auth_disabled_settings):
         """Should return auth error on 401 response."""
         url = reverse("test_connection")
-        data = {
-            "url": "https://pihole.local",
-            "password": "wrongpassword",
-            "verify_ssl": False,
-        }
 
         with patch("backup.views.PiholeV6Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.test_connection.side_effect = ValueError("Invalid Pi-hole password")
             mock_client_class.return_value = mock_client
 
-            response = client.post(
-                url,
-                json.dumps(data),
-                content_type="application/json",
-            )
+            response = client.post(url)
 
         assert response.status_code == 200
         response_data = response.json()
@@ -95,22 +86,13 @@ class TestTestConnectionEndpoint:
     def test_handles_connection_error(self, client, auth_disabled_settings):
         """Should handle connection errors gracefully."""
         url = reverse("test_connection")
-        data = {
-            "url": "https://pihole.local",
-            "password": "testpassword",
-            "verify_ssl": False,
-        }
 
         with patch("backup.views.PiholeV6Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.test_connection.side_effect = ConnectionError("Cannot connect")
             mock_client_class.return_value = mock_client
 
-            response = client.post(
-                url,
-                json.dumps(data),
-                content_type="application/json",
-            )
+            response = client.post(url)
 
         assert response.status_code == 200
         response_data = response.json()

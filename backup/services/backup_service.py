@@ -9,6 +9,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from ..models import BackupRecord, PiholeConfig
+from .credential_service import CredentialService
 from .notifications import NotificationEvent, NotificationPayload
 from .notifications.service import get_notification_service
 from .pihole_client import PiholeV6Client
@@ -26,9 +27,12 @@ class BackupService:
         self.notification_service = get_notification_service()
 
     def _get_client(self) -> PiholeV6Client:
-        """Create a Pi-hole client for this config."""
+        """Create a Pi-hole client using environment credentials."""
+        creds = CredentialService.get_credentials()
         return PiholeV6Client(
-            base_url=self.config.pihole_url, password=self.config.password, verify_ssl=self.config.verify_ssl
+            base_url=creds["url"],
+            password=creds["password"],
+            verify_ssl=creds["verify_ssl"],
         )
 
     def _generate_filename(self) -> str:
@@ -176,7 +180,7 @@ class BackupService:
             event=event,
             title=title,
             message=message,
-            pihole_name=self.config.name or self.config.pihole_url,
+            pihole_name=self.config.name,
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             details=details,
         )

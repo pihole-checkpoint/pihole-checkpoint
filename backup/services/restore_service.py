@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..models import BackupRecord, PiholeConfig
+from .credential_service import CredentialService
 from .notifications import NotificationEvent, NotificationPayload
 from .notifications.service import get_notification_service
 from .pihole_client import PiholeV6Client
@@ -57,11 +58,12 @@ class RestoreService:
                 if actual_checksum != record.checksum:
                     raise ValueError("Backup file corrupted (checksum mismatch)")
 
-            # Upload to Pi-hole
+            # Upload to Pi-hole using environment credentials
+            creds = CredentialService.get_credentials()
             client = PiholeV6Client(
-                base_url=self.config.pihole_url,
-                password=self.config.password,
-                verify_ssl=self.config.verify_ssl,
+                base_url=creds["url"],
+                password=creds["password"],
+                verify_ssl=creds["verify_ssl"],
             )
 
             with open(filepath, "rb") as f:
@@ -104,7 +106,7 @@ class RestoreService:
             event=event,
             title=title,
             message=message,
-            pihole_name=self.config.name or self.config.pihole_url,
+            pihole_name=self.config.name,
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             details=details,
         )

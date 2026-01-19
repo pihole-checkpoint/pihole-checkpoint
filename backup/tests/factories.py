@@ -8,15 +8,16 @@ from backup.models import BackupRecord, PiholeConfig
 
 
 class PiholeConfigFactory(factory.django.DjangoModelFactory):
-    """Factory for creating PiholeConfig instances."""
+    """Factory for creating PiholeConfig instances.
+
+    Note: Pi-hole credentials are now configured via environment variables.
+    Use the pihole_credentials fixture to set them up in tests.
+    """
 
     class Meta:
         model = PiholeConfig
 
     name = factory.Sequence(lambda n: f"Pi-hole {n}")
-    pihole_url = factory.Sequence(lambda n: f"https://pihole{n}.local")
-    password = "testpassword123"
-    verify_ssl = False
     backup_frequency = "daily"
     backup_time = time(3, 0)
     backup_day = 0
