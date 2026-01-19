@@ -95,8 +95,13 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Encrypted fields key (must be 32 characters)
-FIELD_ENCRYPTION_KEY = os.environ.get("FIELD_ENCRYPTION_KEY", "change-this-key-to-32-characters")
+# Encrypted fields key (Fernet key)
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Default is a valid Fernet key for Docker build (collectstatic). Users MUST set their own key.
+FIELD_ENCRYPTION_KEY = os.environ.get(
+    "FIELD_ENCRYPTION_KEY",
+    "lPZ4jhO9sDu-QRHdP9KKNewqj_SJuWSKxyJpt3dNhqA=",  # Build-time placeholder - DO NOT use in production
+)
 
 # Backup storage path
 BACKUP_DIR = BASE_DIR / "backups"
@@ -108,6 +113,14 @@ APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 # APScheduler settings
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
 APSCHEDULER_RUN_NOW_TIMEOUT = 25
+
+# Notification settings (configured via environment variables)
+# See .env.example for available options
+# NOTIFY_ON_FAILURE: Enable notifications for backup/restore failures (default: true)
+# NOTIFY_ON_SUCCESS: Enable notifications for backup/restore success (default: false)
+# NOTIFY_ON_CONNECTION_LOST: Enable notifications when Pi-hole is unreachable (default: true)
+# Provider-specific settings: NOTIFY_DISCORD_*, NOTIFY_SLACK_*, NOTIFY_TELEGRAM_*,
+#                             NOTIFY_PUSHBULLET_*, NOTIFY_HOMEASSISTANT_*
 
 # Logging
 LOGGING = {

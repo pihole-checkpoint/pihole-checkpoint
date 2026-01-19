@@ -9,6 +9,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from ..models import BackupRecord, PiholeConfig
+from .notifications import NotificationEvent, NotificationPayload
+from .notifications.service import get_notification_service
 from .pihole_client import PiholeV6Client
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,7 @@ class BackupService:
         self.config = config
         self.backup_dir = Path(settings.BACKUP_DIR)
         self.backup_dir.mkdir(parents=True, exist_ok=True)
+        self.notification_service = get_notification_service()
 
     def _get_client(self) -> PiholeV6Client:
         """Create a Pi-hole client for this config."""
@@ -89,6 +92,15 @@ class BackupService:
             self.config.save(update_fields=["last_successful_backup", "last_backup_error"])
 
             logger.info(f"Backup created successfully: {filename}")
+
+            # Send success notification
+            self._notify(
+                NotificationEvent.BACKUP_SUCCESS,
+                "Backup Completed",
+                f"Successfully created backup: {record.filename}",
+                details={"File size": f"{record.file_size:,} bytes"},
+            )
+
             return record
 
         except Exception as e:
@@ -112,6 +124,14 @@ class BackupService:
             # Update config with error
             self.config.last_backup_error = str(e)
             self.config.save(update_fields=["last_backup_error"])
+
+            # Send failure notification
+            self._notify(
+                NotificationEvent.BACKUP_FAILED,
+                "Backup Failed",
+                f"Failed to create backup: {e}",
+                details={"Error": str(e)},
+            )
 
             raise
 
@@ -143,3 +163,21 @@ class BackupService:
             return None
         filepath = Path(record.file_path)
         return filepath if filepath.exists() else None
+
+    def _notify(
+        self,
+        event: NotificationEvent,
+        title: str,
+        message: str,
+        details: dict | None = None,
+    ) -> None:
+        """Send notification for an event."""
+        payload = NotificationPayload(
+            event=event,
+            title=title,
+            message=message,
+            pihole_name=self.config.name or self.config.pihole_url,
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            details=details,
+        )
+        self.notification_service.send_notification(payload)

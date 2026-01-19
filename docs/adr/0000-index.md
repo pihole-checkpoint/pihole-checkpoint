@@ -28,15 +28,17 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0006](0006-github-docker-publish.md) | GitHub Actions Docker Image Publishing | Proposed | 2026-01-18 |
 | [ADR-0007](0007-github-test-workflow.md) | GitHub Actions Test Workflow Integration | Accepted | 2026-01-18 |
 | [ADR-0008](0008-one-click-restore.md) | One-Click Restore | Implemented | 2026-01-18 |
+| [ADR-0009](0009-backup-failure-notifications.md) | Backup Failure Notifications | Implemented | 2026-01-18 |
 | [ADR-0010](0010-env-var-credentials.md) | Replace Encrypted Database Fields with Environment Variables | Proposed | 2026-01-18 |
 
 ---
 
 ## Summary by Status
 
-### Implemented (2)
+### Implemented (3)
 - ADR-0003: Single Container Architecture
 - ADR-0008: One-Click Restore
+- ADR-0009: Backup Failure Notifications
 
 ### Accepted (3)
 - ADR-0001: Pi-hole v6 Backup Application Architecture

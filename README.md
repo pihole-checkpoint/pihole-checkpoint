@@ -12,7 +12,9 @@ A web application for backing up Pi-hole v6 instances via the Teleporter API. Ru
 
 - Automated scheduled backups (hourly, daily, or weekly)
 - Manual backup on demand
+- One-click restore to Pi-hole
 - Backup retention policies (by count and age)
+- Failure notifications (Discord, Slack, Telegram, Pushbullet, Home Assistant)
 - Encrypted password storage
 - Optional web UI authentication
 
@@ -63,6 +65,27 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 | `APP_PASSWORD` | No | Password for web UI when `REQUIRE_AUTH=true` |
 | `DEBUG` | No | Enable debug mode (default: false) |
 | `ALLOWED_HOSTS` | No | Comma-separated allowed hosts (default: *) |
+
+## Notifications
+
+Get notified when backups fail. Configure via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `NOTIFY_ON_FAILURE` | Enable failure notifications (default: true) |
+| `NOTIFY_ON_SUCCESS` | Enable success notifications (default: false) |
+| `NOTIFY_DISCORD_ENABLED` | Enable Discord notifications |
+| `NOTIFY_DISCORD_WEBHOOK_URL` | Discord webhook URL |
+| `NOTIFY_SLACK_ENABLED` | Enable Slack notifications |
+| `NOTIFY_SLACK_WEBHOOK_URL` | Slack webhook URL |
+| `NOTIFY_TELEGRAM_ENABLED` | Enable Telegram notifications |
+| `NOTIFY_TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `NOTIFY_TELEGRAM_CHAT_ID` | Telegram chat ID |
+| `NOTIFY_PUSHBULLET_ENABLED` | Enable Pushbullet notifications |
+| `NOTIFY_PUSHBULLET_API_KEY` | Pushbullet API key |
+| `NOTIFY_HOMEASSISTANT_ENABLED` | Enable Home Assistant notifications |
+| `NOTIFY_HOMEASSISTANT_URL` | Home Assistant URL |
+| `NOTIFY_HOMEASSISTANT_WEBHOOK_ID` | Webhook ID (or use `_TOKEN` for API) |
 
 ## Data Storage
 
