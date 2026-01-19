@@ -42,4 +42,4 @@ jobs:
 
       - name: Verify image runs
         run: |
-          docker run --rm pihole-checkpoint:ci-test python --version
+          docker run --rm --entrypoint python pihole-checkpoint:ci-test --version
