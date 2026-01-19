@@ -54,11 +54,11 @@ def schedule_backup_jobs(scheduler):
     for config in configs:
         job_id = f"backup_{config.id}"
 
-        # Remove existing job for this config
+        # Remove existing job for this config (may not exist on first run)
         try:
             scheduler.remove_job(job_id)
         except Exception:
-            pass
+            pass  # Job doesn't exist yet, which is fine
 
         # Create trigger based on frequency
         if config.backup_frequency == "hourly":
