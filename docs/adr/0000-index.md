@@ -28,6 +28,7 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0006](0006-github-docker-publish.md) | GitHub Actions Docker Image Publishing | Proposed | 2026-01-18 |
 | [ADR-0007](0007-github-test-workflow.md) | GitHub Actions Test Workflow Integration | Accepted | 2026-01-18 |
 | [ADR-0008](0008-one-click-restore.md) | One-Click Restore | Implemented | 2026-01-18 |
+| [ADR-0010](0010-env-var-credentials.md) | Replace Encrypted Database Fields with Environment Variables | Proposed | 2026-01-18 |
 
 ---
 
@@ -42,16 +43,17 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0002: Offline Static Assets (Remove CDN Dependencies)
 - ADR-0007: GitHub Actions Test Workflow Integration
 
-### Proposed (3)
+### Proposed (4)
 - ADR-0004: Manual Backup Trigger with UI Refresh on Completion
 - ADR-0005: Testing Strategy and Workflow
 - ADR-0006: GitHub Actions Docker Image Publishing
+- ADR-0010: Replace Encrypted Database Fields with Environment Variables
 
 ---
 
 ## Creating New ADRs
 
 When creating a new ADR:
-1. Use the next sequential number (e.g., `0009-*.md`)
+1. Use the next sequential number (e.g., `0011-*.md`)
 2. Follow the established format with Status, Date, and Deciders
 3. Update this index file with the new entry
