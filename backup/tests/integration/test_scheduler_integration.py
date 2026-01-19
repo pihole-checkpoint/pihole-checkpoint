@@ -11,6 +11,7 @@ from backup.management.commands.runapscheduler import (
     Command,
     run_backup_job,
     run_retention_job,
+    schedule_backup_jobs,
 )
 from backup.tests.factories import (
     HourlyPiholeConfigFactory,
@@ -112,16 +113,15 @@ class TestRunRetentionJob:
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestScheduleBackupJobs:
-    """Tests for Command._schedule_backup_jobs()."""
+    """Tests for schedule_backup_jobs() function."""
 
     def test_hourly_config_uses_interval_trigger(self, temp_backup_dir):
         """Hourly backup config should use IntervalTrigger."""
         HourlyPiholeConfigFactory()
 
         mock_scheduler = MagicMock()
-        command = Command()
 
-        command._schedule_backup_jobs(mock_scheduler)
+        schedule_backup_jobs(mock_scheduler)
 
         # Verify add_job was called
         mock_scheduler.add_job.assert_called()
@@ -137,9 +137,8 @@ class TestScheduleBackupJobs:
         PiholeConfigFactory(backup_frequency="daily", backup_time=time(3, 30))
 
         mock_scheduler = MagicMock()
-        command = Command()
 
-        command._schedule_backup_jobs(mock_scheduler)
+        schedule_backup_jobs(mock_scheduler)
 
         call_kwargs = mock_scheduler.add_job.call_args_list[-1].kwargs
         trigger = call_kwargs.get("trigger")
@@ -154,9 +153,8 @@ class TestScheduleBackupJobs:
         )
 
         mock_scheduler = MagicMock()
-        command = Command()
 
-        command._schedule_backup_jobs(mock_scheduler)
+        schedule_backup_jobs(mock_scheduler)
 
         call_kwargs = mock_scheduler.add_job.call_args_list[-1].kwargs
         trigger = call_kwargs.get("trigger")
@@ -168,9 +166,8 @@ class TestScheduleBackupJobs:
         config = PiholeConfigFactory()
 
         mock_scheduler = MagicMock()
-        command = Command()
 
-        command._schedule_backup_jobs(mock_scheduler)
+        schedule_backup_jobs(mock_scheduler)
 
         # Should attempt to remove existing job
         expected_job_id = f"backup_{config.id}"
@@ -182,9 +179,8 @@ class TestScheduleBackupJobs:
         inactive = InactivePiholeConfigFactory()
 
         mock_scheduler = MagicMock()
-        command = Command()
 
-        command._schedule_backup_jobs(mock_scheduler)
+        schedule_backup_jobs(mock_scheduler)
 
         # Should only add job for active config
         job_ids = [call.kwargs.get("id") for call in mock_scheduler.add_job.call_args_list]
@@ -198,10 +194,8 @@ class TestScheduleBackupJobs:
         mock_scheduler = MagicMock()
         mock_scheduler.remove_job.side_effect = Exception("Job not found")
 
-        command = Command()
-
         # Should not raise exception
-        command._schedule_backup_jobs(mock_scheduler)
+        schedule_backup_jobs(mock_scheduler)
 
         # Should still add the job
         mock_scheduler.add_job.assert_called()
