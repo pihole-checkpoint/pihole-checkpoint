@@ -21,12 +21,16 @@ def dashboard(request):
     config = PiholeConfig.objects.first()
     backups = BackupRecord.objects.filter(config=config) if config else BackupRecord.objects.none()
 
+    # Get Pi-hole credential status from environment
+    credential_status = CredentialService.get_status()
+
     return render(
         request,
         "backup/dashboard.html",
         {
             "config": config,
             "backups": backups,
+            "credential_status": credential_status,
         },
     )
 

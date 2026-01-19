@@ -35,7 +35,7 @@
                     {% endif %}
                     <span>{{ config.name }}</span>
                 </div>
-                <small class="text-muted">{{ config.pihole_url }}</small>
+                <small class="text-muted">{{ credential_status.url|default:"Not configured" }}</small>
             </div>
         </div>
     </div>
