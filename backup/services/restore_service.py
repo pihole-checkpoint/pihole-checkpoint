@@ -2,9 +2,12 @@
 
 import hashlib
 import logging
+from datetime import datetime
 from pathlib import Path
 
 from ..models import BackupRecord, PiholeConfig
+from .notifications import NotificationEvent, NotificationPayload
+from .notifications.service import get_notification_service
 from .pihole_client import PiholeV6Client
 
 logger = logging.getLogger(__name__)
@@ -15,6 +18,7 @@ class RestoreService:
 
     def __init__(self, config: PiholeConfig):
         self.config = config
+        self.notification_service = get_notification_service()
 
     def _calculate_checksum(self, filepath: Path) -> str:
         """Calculate SHA256 checksum of a file."""
@@ -41,27 +45,67 @@ class RestoreService:
         """
         logger.info(f"Restoring backup {record.filename} to {self.config.name}")
 
-        # Verify file exists
-        filepath = Path(record.file_path)
-        if not filepath.exists():
-            raise FileNotFoundError(f"Backup file not found: {record.filename}")
+        try:
+            # Verify file exists
+            filepath = Path(record.file_path)
+            if not filepath.exists():
+                raise FileNotFoundError(f"Backup file not found: {record.filename}")
 
-        # Verify checksum before restore
-        if record.checksum:
-            actual_checksum = self._calculate_checksum(filepath)
-            if actual_checksum != record.checksum:
-                raise ValueError("Backup file corrupted (checksum mismatch)")
+            # Verify checksum before restore
+            if record.checksum:
+                actual_checksum = self._calculate_checksum(filepath)
+                if actual_checksum != record.checksum:
+                    raise ValueError("Backup file corrupted (checksum mismatch)")
 
-        # Upload to Pi-hole
-        client = PiholeV6Client(
-            base_url=self.config.pihole_url,
-            password=self.config.password,
-            verify_ssl=self.config.verify_ssl,
+            # Upload to Pi-hole
+            client = PiholeV6Client(
+                base_url=self.config.pihole_url,
+                password=self.config.password,
+                verify_ssl=self.config.verify_ssl,
+            )
+
+            with open(filepath, "rb") as f:
+                backup_data = f.read()
+
+            result = client.upload_teleporter_backup(backup_data)
+            logger.info(f"Backup {record.filename} restored successfully")
+
+            # Send success notification
+            self._notify(
+                NotificationEvent.RESTORE_SUCCESS,
+                "Restore Completed",
+                f"Successfully restored backup: {record.filename}",
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Restore failed for {record.filename}: {e}")
+
+            # Send failure notification
+            self._notify(
+                NotificationEvent.RESTORE_FAILED,
+                "Restore Failed",
+                f"Failed to restore backup: {record.filename}",
+                details={"Error": str(e)},
+            )
+
+            raise
+
+    def _notify(
+        self,
+        event: NotificationEvent,
+        title: str,
+        message: str,
+        details: dict | None = None,
+    ) -> None:
+        """Send notification for an event."""
+        payload = NotificationPayload(
+            event=event,
+            title=title,
+            message=message,
+            pihole_name=self.config.name or self.config.pihole_url,
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            details=details,
         )
-
-        with open(filepath, "rb") as f:
-            backup_data = f.read()
-
-        result = client.upload_teleporter_backup(backup_data)
-        logger.info(f"Backup {record.filename} restored successfully")
-        return result
+        self.notification_service.send_notification(payload)
