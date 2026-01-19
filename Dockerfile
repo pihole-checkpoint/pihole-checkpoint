@@ -5,16 +5,27 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 RUN apt-get update && apt-get install -y --no-install-recommends curl procps \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy only dependency files first (layer cached if deps unchanged)
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies (cached layer when deps unchanged)
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy application code (only this layer rebuilds on code changes)
 COPY . .
 
-RUN pip install --no-cache-dir .
+# Install the project itself (fast - deps already installed)
+RUN uv sync --frozen --no-dev
 
 RUN mkdir -p /app/data /app/backups /app/staticfiles
 
-RUN python manage.py collectstatic --noinput
+RUN uv run python manage.py collectstatic --noinput
 
 # Make entrypoint executable
 RUN chmod +x /app/entrypoint.sh
