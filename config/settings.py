@@ -95,11 +95,12 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Encrypted fields key (Fernet key - generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+# Encrypted fields key (Fernet key)
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 # Default is a valid Fernet key for Docker build (collectstatic). Users MUST set their own key.
 FIELD_ENCRYPTION_KEY = os.environ.get(
     "FIELD_ENCRYPTION_KEY",
-    "lPZ4jhO9sDu-QRHdP9KKNewqj_SJuWSKxyJpt3dNhqA="  # Build-time placeholder - DO NOT use in production
+    "lPZ4jhO9sDu-QRHdP9KKNewqj_SJuWSKxyJpt3dNhqA=",  # Build-time placeholder - DO NOT use in production
 )
 
 # Backup storage path
