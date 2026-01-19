@@ -1,7 +1,6 @@
 """Pi-hole v6 API client with session-based authentication."""
 
 import logging
-from urllib.parse import urljoin
 
 import requests
 
@@ -19,8 +18,13 @@ class PiholeV6Client:
         self._session = requests.Session()
 
     def _get_url(self, endpoint: str) -> str:
-        """Build full URL for an endpoint."""
-        return urljoin(self.base_url, endpoint)
+        """Build full URL for an endpoint.
+
+        Uses simple string concatenation to preserve base URL path.
+        This handles Pi-hole instances behind reverse proxies with path prefixes.
+        """
+        # self.base_url is already rstrip("/") in __init__
+        return self.base_url + endpoint
 
     def authenticate(self) -> bool:
         """

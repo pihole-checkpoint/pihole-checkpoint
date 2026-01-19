@@ -1,7 +1,9 @@
 """APScheduler management command for running scheduled backups."""
 
 import logging
+import threading
 
+from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -18,6 +20,18 @@ logger = logging.getLogger(__name__)
 # Module-level scheduler reference for refresh function
 _scheduler = None
 
+# Locks for preventing concurrent backup execution per config
+_backup_locks: dict[int, threading.Lock] = {}
+_locks_lock = threading.Lock()
+
+
+def _get_config_lock(config_id: int) -> threading.Lock:
+    """Get or create a lock for a specific config."""
+    with _locks_lock:
+        if config_id not in _backup_locks:
+            _backup_locks[config_id] = threading.Lock()
+        return _backup_locks[config_id]
+
 
 def run_backup_job():
     """Execute backup for all active configs."""
@@ -26,6 +40,13 @@ def run_backup_job():
     configs = PiholeConfig.objects.filter(is_active=True)
 
     for config in configs:
+        lock = _get_config_lock(config.id)
+
+        # Non-blocking acquire - skip if already running
+        if not lock.acquire(blocking=False):
+            logger.warning(f"Backup already in progress for {config.name}, skipping")
+            continue
+
         try:
             logger.info(f"Creating backup for: {config.name}")
             service = BackupService(config)
@@ -33,6 +54,8 @@ def run_backup_job():
             logger.info(f"Backup created: {record.filename}")
         except Exception as e:
             logger.error(f"Backup failed for {config.name}: {e}")
+        finally:
+            lock.release()
 
 
 def run_retention_job():
@@ -57,13 +80,19 @@ def schedule_backup_jobs(scheduler):
         # Remove existing job for this config (may not exist on first run)
         try:
             scheduler.remove_job(job_id)
-        except Exception:
-            pass  # Job doesn't exist yet, which is fine
+        except JobLookupError:
+            # Job doesn't exist yet, which is fine
+            pass
+        except Exception as e:
+            # Log unexpected errors but continue
+            logger.warning(f"Unexpected error removing job {job_id}: {e}")
 
         # Create trigger based on frequency
         if config.backup_frequency == "hourly":
-            trigger = IntervalTrigger(hours=1)
-            desc = "every hour"
+            # Use CronTrigger for consistent hourly timing (top of each hour)
+            minute = config.backup_time.minute if config.backup_time else 0
+            trigger = CronTrigger(minute=minute)
+            desc = f"every hour at :{minute:02d}"
         elif config.backup_frequency == "daily":
             trigger = CronTrigger(hour=config.backup_time.hour, minute=config.backup_time.minute)
             desc = f"daily at {config.backup_time}"
@@ -76,13 +105,16 @@ def schedule_backup_jobs(scheduler):
         else:
             continue
 
-        # Add job
+        # Add job with concurrency controls
         scheduler.add_job(
             run_backup_job,
             trigger=trigger,
             id=job_id,
             name=f"Backup {config.name}",
             replace_existing=True,
+            max_instances=1,  # Prevent concurrent execution of same job
+            coalesce=True,  # Combine missed executions into one
+            misfire_grace_time=300,  # Allow 5 min grace for misfired jobs
         )
         logger.info(f"Scheduled backup for {config.name}: {desc}")
 
