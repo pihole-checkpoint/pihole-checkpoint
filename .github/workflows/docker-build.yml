@@ -1,0 +1,45 @@
+name: Docker Build
+
+on:
+  # Run on pull requests to validate build
+  pull_request:
+    branches: [main, master]
+
+  # Run on push to main/master
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+
+concurrency:
+  group: docker-build-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: pihole-checkpoint:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image runs
+        run: |
+          docker run --rm pihole-checkpoint:ci-test python --version
