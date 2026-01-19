@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="backup/static/backup/img/logo.png" alt="Pi-hole Checkpoint" width="500">
+  <img src="logo_background.png" alt="Pi-hole Checkpoint" width="500">
 </p>
 
 # Pi-hole Checkpoint
