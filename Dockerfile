@@ -8,10 +8,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl procps \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
+
+RUN pip install --no-cache-dir .
 
 RUN mkdir -p /app/data /app/backups /app/staticfiles
 

@@ -15,18 +15,7 @@ A web application for backing up Pi-hole v6 instances via the Teleporter API. Ru
 - One-click restore to Pi-hole
 - Backup retention policies (by count and age)
 - Failure notifications (Discord, Slack, Telegram, Pushbullet, Home Assistant)
-- Encrypted password storage
 - Optional web UI authentication
-
-## Generate Keys
-
-```bash
-# Generate SECRET_KEY
-openssl rand -base64 48
-
-# Generate FIELD_ENCRYPTION_KEY
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
 
 ## Quick Start
 
@@ -41,9 +30,8 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
          - ./data:/app/data
          - ./backups:/app/backups
        environment:
-         - SECRET_KEY=your-random-secret-key
-         - FIELD_ENCRYPTION_KEY=your-fernet-encryption-key
-         - TIME_ZONE=UTC
+         - PIHOLE_URL=http://192.168.1.100
+         - PIHOLE_PASSWORD=your-pihole-admin-password
        restart: unless-stopped
    ```
 
@@ -52,19 +40,20 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
    docker compose up -d
    ```
 
-3. Open http://localhost:8000 and configure your Pi-hole connection.
+3. Open http://localhost:8000 to view the dashboard and configure backup schedules.
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SECRET_KEY` | Yes | Django secret key |
-| `FIELD_ENCRYPTION_KEY` | Yes | Fernet key for encrypting Pi-hole passwords |
+| `PIHOLE_URL` | Yes | Pi-hole admin URL (e.g., `http://192.168.1.100`) |
+| `PIHOLE_PASSWORD` | Yes | Pi-hole admin password |
+| `PIHOLE_VERIFY_SSL` | No | Verify SSL certificates (default: false) |
 | `TIME_ZONE` | No | Scheduler timezone (default: UTC) |
 | `REQUIRE_AUTH` | No | Enable web UI password protection (default: false) |
 | `APP_PASSWORD` | No | Password for web UI when `REQUIRE_AUTH=true` |
 | `DEBUG` | No | Enable debug mode (default: false) |
-| `ALLOWED_HOSTS` | No | Comma-separated allowed hosts (default: *) |
+| `ALLOWED_HOSTS` | No | Comma-separated allowed hosts (default: localhost,127.0.0.1) |
 
 ## Notifications
 
