@@ -30,6 +30,7 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0008](0008-one-click-restore.md) | One-Click Restore | Implemented | 2026-01-18 |
 | [ADR-0009](0009-backup-failure-notifications.md) | Backup Failure Notifications | Implemented | 2026-01-18 |
 | [ADR-0010](0010-env-var-credentials.md) | Replace Encrypted Database Fields with Environment Variables | Implemented | 2026-01-18 |
+| [ADR-0011](0011-bug-review-findings.md) | Bug Review Findings and Remediation Plan | Proposed | 2026-01-18 |
 
 ---
 
@@ -46,8 +47,9 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0009: Backup Failure Notifications
 - ADR-0010: Replace Encrypted Database Fields with Environment Variables
 
-### Proposed (1)
+### Proposed (2)
 - ADR-0004: Manual Backup Trigger with UI Refresh on Completion
+- ADR-0011: Bug Review Findings and Remediation Plan
 
 ---
 
