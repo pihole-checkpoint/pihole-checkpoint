@@ -277,7 +277,7 @@ wheels = [
 [[package]]
 name = "pihole-checkpoint"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
     { name = "django" },
