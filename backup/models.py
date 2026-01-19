@@ -1,9 +1,12 @@
 from django.db import models
-from encrypted_model_fields.fields import EncryptedCharField
 
 
 class PiholeConfig(models.Model):
-    """Configuration for a Pi-hole instance."""
+    """Configuration for a Pi-hole instance.
+
+    Note: Pi-hole credentials (URL, password, verify_ssl) are now read from
+    environment variables. See CredentialService for details.
+    """
 
     FREQUENCY_CHOICES = [
         ("hourly", "Hourly"),
@@ -22,9 +25,6 @@ class PiholeConfig(models.Model):
     ]
 
     name = models.CharField(max_length=100, default="Primary Pi-hole")
-    pihole_url = models.URLField(help_text="e.g., https://192.168.1.100")
-    password = EncryptedCharField(max_length=255)
-    verify_ssl = models.BooleanField(default=False, help_text="Disable for self-signed certs")
 
     backup_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="daily")
     backup_time = models.TimeField(default="03:00", help_text="Time for daily/weekly backups")
