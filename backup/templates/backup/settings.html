@@ -9,9 +9,64 @@
 
 <div class="row">
     <div class="col-lg-8">
+        <!-- Pi-hole Connection Status -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-wifi"></i> Pi-hole Connection</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    Connection settings are configured via environment variables.
+                </p>
+                <table class="table table-sm mb-3">
+                    <tbody>
+                        <tr>
+                            <th style="width: 150px;">URL</th>
+                            <td>
+                                {% if credential_status.url %}
+                                <code>{{ credential_status.url }}</code>
+                                {% else %}
+                                <span class="text-danger"><i class="bi bi-x-circle"></i> Not configured</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Password</th>
+                            <td>
+                                {% if credential_status.has_password %}
+                                <span class="text-success"><i class="bi bi-check-circle"></i> Configured</span>
+                                {% else %}
+                                <span class="text-danger"><i class="bi bi-x-circle"></i> Not set</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>SSL Verification</th>
+                            <td>
+                                {% if credential_status.verify_ssl %}
+                                <span class="text-success"><i class="bi bi-shield-check"></i> Enabled</span>
+                                {% else %}
+                                <span class="text-warning"><i class="bi bi-shield-x"></i> Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-outline-secondary" onclick="testConnection()" {% if not credential_status.url or not credential_status.has_password %}disabled{% endif %}>
+                    <i class="bi bi-wifi"></i> Test Connection
+                </button>
+                {% if not credential_status.url or not credential_status.has_password %}
+                <div class="form-text text-danger mt-2">
+                    Set PIHOLE_URL and PIHOLE_PASSWORD environment variables to enable connection.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Backup Schedule Form -->
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Pi-hole Configuration</h5>
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Backup Schedule</h5>
             </div>
             <div class="card-body">
                 <form method="post" id="configForm">
@@ -23,38 +78,12 @@
                         {% if form.name.errors %}
                         <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">A friendly name for this Pi-hole instance</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="id_pihole_url" class="form-label">Pi-hole URL</label>
-                        {{ form.pihole_url }}
-                        {% if form.pihole_url.errors %}
-                        <div class="invalid-feedback d-block">{{ form.pihole_url.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-text">e.g., https://192.168.1.100 or http://pi.hole</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="id_password" class="form-label">Pi-hole Password</label>
-                        {{ form.password }}
-                        {% if form.password.errors %}
-                        <div class="invalid-feedback d-block">{{ form.password.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-text">Your Pi-hole web interface password</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            {{ form.verify_ssl }}
-                            <label class="form-check-label" for="id_verify_ssl">Verify SSL Certificate</label>
-                        </div>
-                        <div class="form-text">Disable for self-signed certificates</div>
+                        <div class="form-text">A friendly name for this backup configuration</div>
                     </div>
 
                     <hr>
 
-                    <h6 class="mb-3">Backup Schedule</h6>
+                    <h6 class="mb-3">Schedule</h6>
 
                     <div class="row mb-3">
                         <div class="col-md-4">
@@ -103,9 +132,6 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg"></i> Save Settings
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="testConnection()">
-                            <i class="bi bi-wifi"></i> Test Connection
-                        </button>
                     </div>
                 </form>
             </div>
@@ -118,14 +144,13 @@
                 <h5 class="mb-0"><i class="bi bi-info-circle"></i> Help</h5>
             </div>
             <div class="card-body">
-                <h6>Pi-hole URL</h6>
-                <p class="small">Enter the URL to your Pi-hole web interface. This should include the protocol (http:// or https://) but not the /admin path.</p>
-
-                <h6>Password</h6>
-                <p class="small">This is the password you use to log into the Pi-hole web interface. It's stored encrypted.</p>
-
-                <h6>SSL Verification</h6>
-                <p class="small">If your Pi-hole uses a self-signed certificate, disable SSL verification to allow connections.</p>
+                <h6>Environment Variables</h6>
+                <p class="small">Pi-hole connection settings are configured via environment variables in your <code>.env</code> file or Docker Compose:</p>
+                <ul class="small">
+                    <li><code>PIHOLE_URL</code> - Pi-hole URL (e.g., https://192.168.1.100)</li>
+                    <li><code>PIHOLE_PASSWORD</code> - Pi-hole admin password</li>
+                    <li><code>PIHOLE_VERIFY_SSL</code> - Enable SSL verification (default: false)</li>
+                </ul>
 
                 <h6>Backup Frequency</h6>
                 <ul class="small">
@@ -133,6 +158,9 @@
                     <li><strong>Daily:</strong> Once per day at specified time</li>
                     <li><strong>Weekly:</strong> Once per week on specified day/time</li>
                 </ul>
+
+                <h6>Retention Policy</h6>
+                <p class="small">Old backups are automatically deleted based on count and age limits. Set to 0 to disable a limit.</p>
             </div>
         </div>
     </div>
@@ -142,15 +170,6 @@
 {% block extra_js %}
 <script>
 async function testConnection() {
-    const url = document.getElementById('id_pihole_url').value;
-    const password = document.getElementById('id_password').value;
-    const verifySsl = document.getElementById('id_verify_ssl').checked;
-
-    if (!url || !password) {
-        showToast('Please enter URL and password first', 'warning');
-        return;
-    }
-
     const btn = event.target;
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
@@ -163,7 +182,7 @@ async function testConnection() {
                 'X-CSRFToken': getCsrfToken(),
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({url, password, verify_ssl: verifySsl})
+            body: '{}'
         });
         const data = await response.json();
 

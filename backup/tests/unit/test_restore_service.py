@@ -113,8 +113,8 @@ class TestRestoreServiceRestoreBackup:
 
             assert result["status"] == "success"
 
-    def test_restore_creates_client_with_config(self, pihole_config, temp_backup_dir):
-        """Should create Pi-hole client with config settings."""
+    def test_restore_creates_client_with_env_credentials(self, pihole_config, temp_backup_dir, settings):
+        """Should create Pi-hole client with environment credentials."""
         backup_content = b"PK\x03\x04test backup content"
         filepath = temp_backup_dir / "test_restore.zip"
         filepath.write_bytes(backup_content)
@@ -133,9 +133,9 @@ class TestRestoreServiceRestoreBackup:
             service.restore_backup(record)
 
             mock_client_class.assert_called_once_with(
-                base_url=pihole_config.pihole_url,
-                password=pihole_config.password,
-                verify_ssl=pihole_config.verify_ssl,
+                base_url=settings.PIHOLE_URL,
+                password=settings.PIHOLE_PASSWORD,
+                verify_ssl=settings.PIHOLE_VERIFY_SSL,
             )
 
     def test_restore_propagates_api_error(self, pihole_config, temp_backup_dir):

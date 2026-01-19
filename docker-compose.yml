@@ -8,7 +8,9 @@ services:
       - ./backups:/app/backups
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-long-random-string}
-      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-change-this-key-to-32-chars!}
+      - PIHOLE_URL=${PIHOLE_URL}
+      - PIHOLE_PASSWORD=${PIHOLE_PASSWORD}
+      - PIHOLE_VERIFY_SSL=${PIHOLE_VERIFY_SSL:-false}
       - TIME_ZONE=${TIME_ZONE:-UTC}
       - REQUIRE_AUTH=${REQUIRE_AUTH:-false}
       - APP_PASSWORD=${APP_PASSWORD:-}
