@@ -1,6 +1,5 @@
 """Tests for backup API endpoints."""
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,9 +34,9 @@ class TestTestConnectionEndpoint:
 
         # Verify client was created with env credentials
         mock_client_class.assert_called_once_with(
-            settings.PIHOLE_URL,
-            settings.PIHOLE_PASSWORD,
-            settings.PIHOLE_VERIFY_SSL,
+            base_url=settings.PIHOLE_URL,
+            password=settings.PIHOLE_PASSWORD,
+            verify_ssl=settings.PIHOLE_VERIFY_SSL,
         )
 
     def test_requires_env_credentials(self, client, auth_disabled_settings, settings):

@@ -65,9 +65,9 @@ def test_connection(request):
         creds = CredentialService.get_credentials()
 
         client = PiholeV6Client(
-            creds["url"],
-            creds["password"],
-            creds["verify_ssl"],
+            base_url=creds["url"],
+            password=creds["password"],
+            verify_ssl=creds["verify_ssl"],
         )
         version_info = client.test_connection()
 

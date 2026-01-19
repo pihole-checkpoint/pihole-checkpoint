@@ -21,6 +21,15 @@ class RestoreService:
         self.config = config
         self.notification_service = get_notification_service()
 
+    def _get_client(self) -> PiholeV6Client:
+        """Create a Pi-hole client using environment credentials."""
+        creds = CredentialService.get_credentials()
+        return PiholeV6Client(
+            base_url=creds["url"],
+            password=creds["password"],
+            verify_ssl=creds["verify_ssl"],
+        )
+
     def _calculate_checksum(self, filepath: Path) -> str:
         """Calculate SHA256 checksum of a file."""
         sha256 = hashlib.sha256()
@@ -59,12 +68,7 @@ class RestoreService:
                     raise ValueError("Backup file corrupted (checksum mismatch)")
 
             # Upload to Pi-hole using environment credentials
-            creds = CredentialService.get_credentials()
-            client = PiholeV6Client(
-                base_url=creds["url"],
-                password=creds["password"],
-                verify_ssl=creds["verify_ssl"],
-            )
+            client = self._get_client()
 
             with open(filepath, "rb") as f:
                 backup_data = f.read()
