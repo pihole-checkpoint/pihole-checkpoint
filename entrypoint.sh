@@ -5,11 +5,11 @@ echo "=== Pi-hole Checkpoint Starting ==="
 
 # Run migrations
 echo "[1/3] Running database migrations..."
-python manage.py migrate --noinput
+uv run python manage.py migrate --noinput
 
 # Function to start scheduler
 start_scheduler() {
-    python manage.py runapscheduler &
+    uv run python manage.py runapscheduler &
     SCHEDULER_PID=$!
     echo "Scheduler started with PID: $SCHEDULER_PID"
 }
@@ -45,7 +45,7 @@ trap cleanup SIGTERM SIGINT
 
 # Start Gunicorn (foreground)
 echo "[3/3] Starting web server..."
-exec gunicorn config.wsgi:application \
+exec uv run gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \
     --access-logfile - \

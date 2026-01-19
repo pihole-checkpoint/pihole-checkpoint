@@ -1,0 +1,37 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Local data (mounted as volumes)
+data/
+backups/
+
+# Test and development files
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/
+
+# Documentation
+*.md
+docs/
+
+# Environment files (secrets shouldn't be in the image)
+.env
+.env.*
