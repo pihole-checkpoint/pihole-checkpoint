@@ -1,6 +1,6 @@
 # ADR-0005: Testing Strategy and Workflow
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-01-18
 **Deciders:** Project Owner
 
