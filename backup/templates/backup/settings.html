@@ -52,7 +52,7 @@
                         </tr>
                     </tbody>
                 </table>
-                <button type="button" class="btn btn-outline-secondary" onclick="testConnection()" {% if not credential_status.url or not credential_status.has_password %}disabled{% endif %}>
+                <button type="button" class="btn btn-outline-secondary" onclick="testConnection(this)" {% if not credential_status.url or not credential_status.has_password %}disabled{% endif %}>
                     <i class="bi bi-wifi"></i> Test Connection
                 </button>
                 {% if not credential_status.url or not credential_status.has_password %}
@@ -169,8 +169,11 @@
 
 {% block extra_js %}
 <script>
-async function testConnection() {
-    const btn = event.target;
+/**
+ * Test connection to Pi-hole using environment credentials.
+ * @param {HTMLButtonElement} btn - The button element that triggered this action
+ */
+async function testConnection(btn) {
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing...';

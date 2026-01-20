@@ -12,8 +12,13 @@ from backup.models import BackupRecord, PiholeConfig
 
 
 @pytest.fixture(autouse=True)
-def use_simple_staticfiles_storage(settings):
-    """Use simple staticfiles storage for tests to avoid manifest issues."""
+def use_simple_staticfiles_storage(settings, tmp_path):
+    """Use simple staticfiles storage for tests to avoid manifest issues.
+
+    Also sets STATIC_ROOT to a temp directory to prevent warnings about
+    missing staticfiles configuration.
+    """
+    settings.STATIC_ROOT = str(tmp_path / "static")
     settings.STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -179,19 +184,3 @@ def mock_requests_session():
         mock_session = MagicMock()
         mock_session_class.return_value = mock_session
         yield mock_session
-
-
-@pytest.fixture
-def mock_subprocess_pgrep_success():
-    """Mock subprocess.run for pgrep success (scheduler running)."""
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0)
-        yield mock_run
-
-
-@pytest.fixture
-def mock_subprocess_pgrep_failure():
-    """Mock subprocess.run for pgrep failure (scheduler not running)."""
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=1)
-        yield mock_run

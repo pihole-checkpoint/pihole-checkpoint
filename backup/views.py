@@ -12,12 +12,19 @@ from .services.backup_service import BackupService
 from .services.credential_service import CredentialService
 from .services.pihole_client import PiholeV6Client
 from .services.restore_service import RestoreService
+from .services.system_service import is_scheduler_running
 
 logger = logging.getLogger(__name__)
 
 
 def dashboard(request):
-    """Main dashboard view showing backup status and history."""
+    """Main dashboard view showing backup status and history.
+
+    Note: The UI currently supports only a single Pi-hole configuration.
+    While the PiholeConfig model can store multiple instances, the dashboard
+    uses .first() to display only one. Multi-instance UI support is a
+    potential future enhancement (see ADR-0013, Issue 7).
+    """
     config = PiholeConfig.objects.first()
     backups = BackupRecord.objects.filter(config=config) if config else BackupRecord.objects.none()
 
@@ -256,19 +263,7 @@ def logout_view(request):
 
 def health_check(request):
     """Health check endpoint for container orchestration."""
-    import subprocess
-
-    # Check if scheduler process is running
-    try:
-        result = subprocess.run(
-            ["pgrep", "-f", "runapscheduler"],
-            capture_output=True,
-            timeout=5,  # 5 second timeout
-        )
-        scheduler_running = result.returncode == 0
-    except subprocess.TimeoutExpired:
-        # If pgrep hangs, assume scheduler is having issues
-        scheduler_running = False
+    scheduler_running = is_scheduler_running()
 
     status = {
         "web": "ok",

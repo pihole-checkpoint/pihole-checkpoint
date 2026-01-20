@@ -2,6 +2,7 @@
 
 import logging
 import threading
+from functools import partial
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -33,29 +34,34 @@ def _get_config_lock(config_id: int) -> threading.Lock:
         return _backup_locks[config_id]
 
 
-def run_backup_job():
-    """Execute backup for all active configs."""
-    logger.info("Running scheduled backup job")
+def run_backup_job_for_config(config_id: int):
+    """Execute backup for a specific config.
 
-    configs = PiholeConfig.objects.filter(is_active=True)
+    Args:
+        config_id: The ID of the PiholeConfig to back up
+    """
+    try:
+        config = PiholeConfig.objects.get(id=config_id, is_active=True)
+    except PiholeConfig.DoesNotExist:
+        logger.warning(f"Config {config_id} not found or inactive, skipping backup")
+        return
 
-    for config in configs:
-        lock = _get_config_lock(config.id)
+    lock = _get_config_lock(config_id)
 
-        # Non-blocking acquire - skip if already running
-        if not lock.acquire(blocking=False):
-            logger.warning(f"Backup already in progress for {config.name}, skipping")
-            continue
+    # Non-blocking acquire - skip if already running
+    if not lock.acquire(blocking=False):
+        logger.warning(f"Backup already in progress for {config.name}, skipping")
+        return
 
-        try:
-            logger.info(f"Creating backup for: {config.name}")
-            service = BackupService(config)
-            record = service.create_backup(is_manual=False)
-            logger.info(f"Backup created: {record.filename}")
-        except Exception as e:
-            logger.error(f"Backup failed for {config.name}: {e}")
-        finally:
-            lock.release()
+    try:
+        logger.info(f"Creating scheduled backup for: {config.name}")
+        service = BackupService(config)
+        record = service.create_backup(is_manual=False)
+        logger.info(f"Backup created: {record.filename}")
+    except Exception as e:
+        logger.error(f"Backup failed for {config.name}: {e}")
+    finally:
+        lock.release()
 
 
 def run_retention_job():
@@ -106,8 +112,9 @@ def schedule_backup_jobs(scheduler):
             continue
 
         # Add job with concurrency controls
+        # Use partial to pass config_id, so each job only backs up its own config
         scheduler.add_job(
-            run_backup_job,
+            partial(run_backup_job_for_config, config.id),
             trigger=trigger,
             id=job_id,
             name=f"Backup {config.name}",

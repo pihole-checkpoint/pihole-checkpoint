@@ -12,8 +12,8 @@ from django.utils import timezone
 
 from ..models import BackupRecord, PiholeConfig
 from .credential_service import CredentialService
-from .notifications import NotificationEvent, NotificationPayload
-from .notifications.service import get_notification_service
+from .notifications import NotificationEvent
+from .notifications.service import get_notification_service, safe_send_notification
 from .pihole_client import PiholeV6Client
 
 logger = logging.getLogger(__name__)
@@ -110,8 +110,10 @@ class BackupService:
 
             logger.info(f"Backup created successfully: {filename}")
 
-            # Send success notification
-            self._notify(
+            # Send success notification (isolated from backup success)
+            safe_send_notification(
+                self.notification_service,
+                self.config.name,
                 NotificationEvent.BACKUP_SUCCESS,
                 "Backup Completed",
                 f"Successfully created backup: {record.filename}",
@@ -123,9 +125,8 @@ class BackupService:
         except Exception as e:
             logger.error(f"Backup failed for {self.config.name}: {e}")
 
-            # Clean up partial file if it exists
-            if filepath.exists():
-                filepath.unlink()
+            # Clean up partial file - don't let cleanup errors mask original
+            self._safe_cleanup(filepath)
 
             # Create failed record
             record = BackupRecord.objects.create(
@@ -142,8 +143,10 @@ class BackupService:
             self.config.last_backup_error = str(e)
             self.config.save(update_fields=["last_backup_error"])
 
-            # Send failure notification
-            self._notify(
+            # Send failure notification (isolated)
+            safe_send_notification(
+                self.notification_service,
+                self.config.name,
                 NotificationEvent.BACKUP_FAILED,
                 "Backup Failed",
                 f"Failed to create backup: {e}",
@@ -181,20 +184,10 @@ class BackupService:
         filepath = Path(record.file_path)
         return filepath if filepath.exists() else None
 
-    def _notify(
-        self,
-        event: NotificationEvent,
-        title: str,
-        message: str,
-        details: dict | None = None,
-    ) -> None:
-        """Send notification for an event."""
-        payload = NotificationPayload(
-            event=event,
-            title=title,
-            message=message,
-            pihole_name=self.config.name,
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            details=details,
-        )
-        self.notification_service.send_notification(payload)
+    def _safe_cleanup(self, filepath: Path) -> None:
+        """Clean up partial file, catching any errors."""
+        try:
+            if filepath.exists():
+                filepath.unlink()
+        except OSError as e:
+            logger.warning(f"Failed to clean up partial file {filepath}: {e}")

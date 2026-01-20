@@ -6,6 +6,11 @@ class PiholeConfig(models.Model):
 
     Note: Pi-hole credentials (URL, password, verify_ssl) are now read from
     environment variables. See CredentialService for details.
+
+    Known Limitation: While this model supports multiple configurations, the
+    current UI (dashboard and settings views) only displays a single instance
+    using .first(). Multi-instance support is a potential future enhancement.
+    See ADR-0013, Issue 7 for details.
     """
 
     FREQUENCY_CHOICES = [

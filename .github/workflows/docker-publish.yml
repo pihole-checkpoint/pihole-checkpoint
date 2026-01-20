@@ -7,6 +7,11 @@ on:
     types: [completed]
     branches: [main, master]
 
+  # Publish PR images as pr-<number>
+  pull_request:
+    branches: [main, master]
+    types: [opened, reopened, synchronize]
+
   # Tag pushes trigger directly
   push:
     tags:
@@ -28,6 +33,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: docker-publish-${{ github.event.pull_request.number || github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   # Gate job - checks if we should proceed
   check-build:
@@ -41,6 +50,14 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "should-publish=true" >> $GITHUB_OUTPUT
             echo "Manual trigger - proceeding with publish"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+              echo "should-publish=false" >> $GITHUB_OUTPUT
+              echo "Fork PR - skipping publish (no package write permissions)"
+            else
+              echo "should-publish=true" >> $GITHUB_OUTPUT
+              echo "PR event - proceeding with publish"
+            fi
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             echo "should-publish=true" >> $GITHUB_OUTPUT
             echo "Tag push - proceeding with publish"
@@ -67,7 +84,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # For workflow_run, checkout the commit that triggered build
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -89,7 +106,8 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master' }}
-            type=ref,event=branch
+            type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
+            type=ref,event=branch,enable=${{ github.event_name != 'pull_request' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}

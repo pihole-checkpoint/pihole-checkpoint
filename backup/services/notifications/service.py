@@ -3,8 +3,9 @@
 import atexit
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
-from .base import NotificationPayload, NotificationProvider
+from .base import NotificationEvent, NotificationPayload, NotificationProvider
 from .config import get_notification_settings
 from .discord import DiscordProvider
 from .homeassistant import HomeAssistantProvider
@@ -123,3 +124,39 @@ def get_notification_service() -> NotificationService:
     if _service is None:
         _service = NotificationService()
     return _service
+
+
+def safe_send_notification(
+    service: NotificationService,
+    pihole_name: str,
+    event: NotificationEvent,
+    title: str,
+    message: str,
+    details: dict | None = None,
+) -> None:
+    """Send notification, catching any errors to prevent operation failure.
+
+    This is a helper function that wraps notification sending with error handling,
+    ensuring that notification failures don't affect the primary operation
+    (backup creation, restore, etc.).
+
+    Args:
+        service: The notification service instance
+        pihole_name: Name of the Pi-hole instance
+        event: The notification event type
+        title: Notification title
+        message: Notification message body
+        details: Optional additional details dict
+    """
+    try:
+        payload = NotificationPayload(
+            event=event,
+            title=title,
+            message=message,
+            pihole_name=pihole_name,
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            details=details,
+        )
+        service.send_notification(payload)
+    except Exception as e:
+        logger.warning(f"Failed to send notification: {e}")

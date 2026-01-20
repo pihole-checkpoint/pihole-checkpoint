@@ -9,6 +9,19 @@ from .base import NotificationEvent, NotificationPayload, NotificationProvider
 logger = logging.getLogger(__name__)
 
 
+def _escape_markdown(text: str) -> str:
+    """Escape Telegram Markdown special characters.
+
+    Escapes characters that have special meaning in Telegram's Markdown
+    mode to prevent formatting issues or injection.
+    """
+    # Characters that need escaping in Telegram Markdown
+    special_chars = ["_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"]
+    for char in special_chars:
+        text = text.replace(char, f"\\{char}")
+    return text
+
+
 class TelegramProvider(NotificationProvider):
     """Telegram bot notification provider."""
 
@@ -22,14 +35,23 @@ class TelegramProvider(NotificationProvider):
     def send(self, payload: NotificationPayload) -> bool:
         """Send notification via Telegram bot."""
         icon = "\u274c" if "failed" in payload.event.value else "\u2705"
-        text = f"{icon} *{payload.title}*\n\n{payload.message}\n\n"
-        text += f"\U0001f4cd Pi-hole: {payload.pihole_name}\n"
-        text += f"\U0001f552 Time: {payload.timestamp}"
+
+        # Escape user-provided content to prevent Markdown injection
+        safe_title = _escape_markdown(payload.title)
+        safe_message = _escape_markdown(payload.message)
+        safe_name = _escape_markdown(payload.pihole_name)
+        safe_timestamp = _escape_markdown(payload.timestamp)
+
+        text = f"{icon} *{safe_title}*\n\n{safe_message}\n\n"
+        text += f"\U0001f4cd Pi\\-hole: {safe_name}\n"
+        text += f"\U0001f552 Time: {safe_timestamp}"
 
         if payload.details:
             text += "\n\n"
             for key, value in payload.details.items():
-                text += f"*{key}:* {value}\n"
+                safe_key = _escape_markdown(str(key))
+                safe_value = _escape_markdown(str(value))
+                text += f"*{safe_key}:* {safe_value}\n"
 
         try:
             response = requests.post(
@@ -37,7 +59,7 @@ class TelegramProvider(NotificationProvider):
                 json={
                     "chat_id": self.chat_id,
                     "text": text,
-                    "parse_mode": "Markdown",
+                    "parse_mode": "MarkdownV2",
                 },
                 timeout=10,
             )

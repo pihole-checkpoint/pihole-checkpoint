@@ -2,13 +2,12 @@
 
 import hashlib
 import logging
-from datetime import datetime
 from pathlib import Path
 
 from ..models import BackupRecord, PiholeConfig
 from .credential_service import CredentialService
-from .notifications import NotificationEvent, NotificationPayload
-from .notifications.service import get_notification_service
+from .notifications import NotificationEvent
+from .notifications.service import get_notification_service, safe_send_notification
 from .pihole_client import PiholeV6Client
 
 logger = logging.getLogger(__name__)
@@ -76,8 +75,10 @@ class RestoreService:
             result = client.upload_teleporter_backup(backup_data)
             logger.info(f"Backup {record.filename} restored successfully")
 
-            # Send success notification
-            self._notify(
+            # Send success notification (isolated from restore success)
+            safe_send_notification(
+                self.notification_service,
+                self.config.name,
                 NotificationEvent.RESTORE_SUCCESS,
                 "Restore Completed",
                 f"Successfully restored backup: {record.filename}",
@@ -88,8 +89,10 @@ class RestoreService:
         except Exception as e:
             logger.error(f"Restore failed for {record.filename}: {e}")
 
-            # Send failure notification
-            self._notify(
+            # Send failure notification (isolated)
+            safe_send_notification(
+                self.notification_service,
+                self.config.name,
                 NotificationEvent.RESTORE_FAILED,
                 "Restore Failed",
                 f"Failed to restore backup: {record.filename}",
@@ -97,21 +100,3 @@ class RestoreService:
             )
 
             raise
-
-    def _notify(
-        self,
-        event: NotificationEvent,
-        title: str,
-        message: str,
-        details: dict | None = None,
-    ) -> None:
-        """Send notification for an event."""
-        payload = NotificationPayload(
-            event=event,
-            title=title,
-            message=message,
-            pihole_name=self.config.name,
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            details=details,
-        )
-        self.notification_service.send_notification(payload)

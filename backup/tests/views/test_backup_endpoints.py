@@ -323,12 +323,18 @@ class TestDownloadBackupEndpoint:
 
 @pytest.mark.django_db
 class TestHealthCheckEndpoint:
-    """Tests for health_check endpoint."""
+    """Tests for health_check endpoint.
 
-    def test_returns_ok_when_healthy(self, client, mock_subprocess_pgrep_success):
+    Note: Health check uses /proc scanning (via system_service.is_scheduler_running)
+    instead of pgrep for portability in minimal Docker images (see ADR-0013, Issue 6).
+    """
+
+    def test_returns_ok_when_healthy(self, client):
         """Should return ok status when healthy."""
         url = reverse("health_check")
-        response = client.get(url)
+
+        with patch("backup.views.is_scheduler_running", return_value=True):
+            response = client.get(url)
 
         assert response.status_code == 200
         response_data = response.json()
@@ -336,19 +342,23 @@ class TestHealthCheckEndpoint:
         assert response_data["scheduler"] == "ok"
         assert response_data["database"] == "ok"
 
-    def test_returns_503_when_scheduler_not_running(self, client, mock_subprocess_pgrep_failure):
+    def test_returns_503_when_scheduler_not_running(self, client):
         """Should return 503 when scheduler not running."""
         url = reverse("health_check")
-        response = client.get(url)
+
+        with patch("backup.views.is_scheduler_running", return_value=False):
+            response = client.get(url)
 
         assert response.status_code == 503
         response_data = response.json()
         assert response_data["scheduler"] == "not running"
 
-    def test_accessible_without_auth(self, client, auth_enabled_settings, mock_subprocess_pgrep_success):
+    def test_accessible_without_auth(self, client, auth_enabled_settings):
         """Health check should be accessible without authentication."""
         url = reverse("health_check")
-        response = client.get(url)
+
+        with patch("backup.views.is_scheduler_running", return_value=True):
+            response = client.get(url)
 
         # Should not redirect to login
         assert response.status_code == 200
