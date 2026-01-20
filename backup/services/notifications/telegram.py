@@ -43,7 +43,7 @@ class TelegramProvider(NotificationProvider):
         safe_timestamp = _escape_markdown(payload.timestamp)
 
         text = f"{icon} *{safe_title}*\n\n{safe_message}\n\n"
-        text += f"\U0001f4cd Pi\\-hole: {safe_name}\n"
+        text += f"\U0001f4cd {_escape_markdown('Pi-hole')}: {safe_name}\n"
         text += f"\U0001f552 Time: {safe_timestamp}"
 
         if payload.details:
