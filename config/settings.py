@@ -16,25 +16,31 @@ DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes")
 
 
 def get_or_create_secret_key() -> str:
-    """Get secret key from env or generate and persist one."""
+    """Get secret key from env or generate and persist one (atomic).
+
+    Uses O_CREAT | O_EXCL for atomic file creation to prevent race
+    conditions when multiple processes start simultaneously.
+    """
     key = os.environ.get("SECRET_KEY")
     if key:
         return key
 
-    # Check for persisted key
     key_file = BASE_DIR / "data" / ".secret_key"
-    if key_file.exists():
-        return key_file.read_text().strip()
-
-    # Generate new key
-    key = secrets.token_urlsafe(50)
     key_file.parent.mkdir(parents=True, exist_ok=True)
-    key_file.write_text(key)
+
+    # Use exclusive create to ensure atomicity
     try:
-        key_file.chmod(0o600)  # Restrict permissions
-    except OSError:
-        pass  # May fail on some filesystems (e.g., Windows)
-    return key
+        # O_CREAT | O_EXCL fails if file exists - atomic check-and-create
+        fd = os.open(key_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            key = secrets.token_urlsafe(50)
+            os.write(fd, key.encode())
+            return key
+        finally:
+            os.close(fd)
+    except FileExistsError:
+        # Another process created it first, read their key
+        return key_file.read_text().strip()
 
 
 SECRET_KEY = get_or_create_secret_key()

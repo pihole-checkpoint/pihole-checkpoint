@@ -11,7 +11,7 @@ from backup.management.commands import runapscheduler
 from backup.management.commands.runapscheduler import (
     Command,
     refresh_backup_schedules,
-    run_backup_job,
+    run_backup_job_for_config,
     run_retention_job,
     schedule_backup_jobs,
 )
@@ -25,13 +25,18 @@ from backup.tests.factories import (
 
 @pytest.mark.django_db
 @pytest.mark.integration
-class TestRunBackupJob:
-    """Tests for run_backup_job function."""
+class TestRunBackupJobForConfig:
+    """Tests for run_backup_job_for_config function.
 
-    def test_creates_backups_for_active_configs(self, temp_backup_dir, sample_backup_data):
-        """run_backup_job should create backups for all active configs."""
-        PiholeConfigFactory(name="Active 1")
-        PiholeConfigFactory(name="Active 2")
+    Note: This function now backs up a single specific config (by ID),
+    rather than all configs. This prevents N×N backup attempts when
+    N configs are scheduled (see ADR-0013, Issue 1).
+    """
+
+    def test_creates_backup_for_specific_config(self, temp_backup_dir, sample_backup_data):
+        """run_backup_job_for_config should create backup for the specified config only."""
+        config1 = PiholeConfigFactory(name="Config 1")
+        config2 = PiholeConfigFactory(name="Config 2")
 
         with patch("backup.management.commands.runapscheduler.BackupService") as mock_service_class:
             mock_service = MagicMock()
@@ -40,49 +45,53 @@ class TestRunBackupJob:
             mock_service.create_backup.return_value = mock_record
             mock_service_class.return_value = mock_service
 
-            run_backup_job()
+            # Only run for config1
+            run_backup_job_for_config(config1.id)
 
-            # Should have created service for each config
-            assert mock_service_class.call_count == 2
-            # Should have called create_backup for each
-            assert mock_service.create_backup.call_count == 2
-
-    def test_skips_inactive_configs(self, temp_backup_dir):
-        """run_backup_job should skip inactive configs."""
-        active = PiholeConfigFactory(name="Active")
-        InactivePiholeConfigFactory(name="Inactive")
-
-        with patch("backup.management.commands.runapscheduler.BackupService") as mock_service_class:
-            mock_service = MagicMock()
-            mock_service.create_backup.return_value = MagicMock(filename="test.zip")
-            mock_service_class.return_value = mock_service
-
-            run_backup_job()
-
-            # Should only be called for active config
+            # Should have created service only for config1 (not config2)
             assert mock_service_class.call_count == 1
-            mock_service_class.assert_called_with(active)
+            mock_service_class.assert_called_with(config1)
+            mock_service.create_backup.assert_called_once()
 
-    def test_continues_on_failure(self, temp_backup_dir):
-        """run_backup_job should continue if one config fails."""
-        PiholeConfigFactory(name="Will Fail")
-        PiholeConfigFactory(name="Will Succeed")
+            # Verify config2 was not backed up by running again for config2
+            mock_service_class.reset_mock()
+            mock_service.reset_mock()
+            run_backup_job_for_config(config2.id)
+            mock_service_class.assert_called_with(config2)
+
+    def test_skips_inactive_config(self, temp_backup_dir):
+        """run_backup_job_for_config should skip if config is inactive."""
+        inactive = InactivePiholeConfigFactory(name="Inactive")
+
+        with patch("backup.management.commands.runapscheduler.BackupService") as mock_service_class:
+            run_backup_job_for_config(inactive.id)
+
+            # Should not create service for inactive config
+            mock_service_class.assert_not_called()
+
+    def test_skips_nonexistent_config(self, temp_backup_dir):
+        """run_backup_job_for_config should skip if config doesn't exist."""
+        with patch("backup.management.commands.runapscheduler.BackupService") as mock_service_class:
+            # Use a config ID that doesn't exist
+            run_backup_job_for_config(99999)
+
+            # Should not create service
+            mock_service_class.assert_not_called()
+
+    def test_handles_failure_gracefully(self, temp_backup_dir):
+        """run_backup_job_for_config should handle backup failures gracefully."""
+        config = PiholeConfigFactory(name="Will Fail")
 
         with patch("backup.management.commands.runapscheduler.BackupService") as mock_service_class:
             mock_service = MagicMock()
-
-            # First call fails, second succeeds
-            mock_service.create_backup.side_effect = [
-                Exception("Backup failed"),
-                MagicMock(filename="success.zip"),
-            ]
+            mock_service.create_backup.side_effect = Exception("Backup failed")
             mock_service_class.return_value = mock_service
 
             # Should not raise exception
-            run_backup_job()
+            run_backup_job_for_config(config.id)
 
-            # Both configs should have been attempted
-            assert mock_service.create_backup.call_count == 2
+            # Backup was attempted
+            mock_service.create_backup.assert_called_once()
 
 
 @pytest.mark.django_db

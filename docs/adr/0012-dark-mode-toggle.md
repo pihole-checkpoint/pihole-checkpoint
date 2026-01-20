@@ -1,6 +1,6 @@
 # ADR-0012: Dark Mode Toggle
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-01-19
 
 ---

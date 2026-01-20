@@ -31,16 +31,14 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0009](0009-backup-failure-notifications.md) | Backup Failure Notifications | Implemented | 2026-01-18 |
 | [ADR-0010](0010-env-var-credentials.md) | Replace Encrypted Database Fields with Environment Variables | Implemented | 2026-01-18 |
 | [ADR-0011](0011-bug-review-findings.md) | Bug Review Findings and Remediation Plan | Implemented | 2026-01-18 |
-| [ADR-0012](0012-dark-mode-toggle.md) | Dark Mode Toggle | Proposed | 2026-01-19 |
+| [ADR-0012](0012-dark-mode-toggle.md) | Dark Mode Toggle | Implemented | 2026-01-19 |
+| [ADR-0013](0013-reliability-security-fixes.md) | Reliability and Security Fixes | Implemented | 2026-01-19 |
 
 ---
 
 ## Summary by Status
 
-### Proposed (1)
-- ADR-0012: Dark Mode Toggle
-
-### Implemented (11)
+### Implemented (13)
 - ADR-0001: Pi-hole v6 Backup Application Architecture
 - ADR-0002: Offline Static Assets (Remove CDN Dependencies)
 - ADR-0003: Single Container Architecture
@@ -52,6 +50,8 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0009: Backup Failure Notifications
 - ADR-0010: Replace Encrypted Database Fields with Environment Variables
 - ADR-0011: Bug Review Findings and Remediation Plan
+- ADR-0012: Dark Mode Toggle
+- ADR-0013: Reliability and Security Fixes
 
 ---
 
