@@ -23,7 +23,7 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0001](0001-pihole-backup-architecture.md) | Pi-hole v6 Backup Application Architecture | Implemented | 2026-01-18 |
 | [ADR-0002](0002-offline-static-assets.md) | Offline Static Assets (Remove CDN Dependencies) | Implemented | 2026-01-18 |
 | [ADR-0003](0003-single-container-architecture.md) | Single Container Architecture | Implemented | 2026-01-18 |
-| [ADR-0004](0004-manual-backup-ui-refresh.md) | Manual Backup Trigger with UI Refresh on Completion | Proposed | 2026-01-18 |
+| [ADR-0004](0004-manual-backup-ui-refresh.md) | Manual Backup Trigger with UI Refresh on Completion | Implemented | 2026-01-18 |
 | [ADR-0005](0005-testing-strategy.md) | Testing Strategy and Workflow | Implemented | 2026-01-18 |
 | [ADR-0006](0006-github-docker-publish.md) | GitHub Actions Docker Image Publishing | Implemented | 2026-01-18 |
 | [ADR-0007](0007-github-test-workflow.md) | GitHub Actions Test Workflow Integration | Implemented | 2026-01-18 |
@@ -31,15 +31,20 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0009](0009-backup-failure-notifications.md) | Backup Failure Notifications | Implemented | 2026-01-18 |
 | [ADR-0010](0010-env-var-credentials.md) | Replace Encrypted Database Fields with Environment Variables | Implemented | 2026-01-18 |
 | [ADR-0011](0011-bug-review-findings.md) | Bug Review Findings and Remediation Plan | Implemented | 2026-01-18 |
+| [ADR-0012](0012-dark-mode-toggle.md) | Dark Mode Toggle | Proposed | 2026-01-19 |
 
 ---
 
 ## Summary by Status
 
-### Implemented (10)
+### Proposed (1)
+- ADR-0012: Dark Mode Toggle
+
+### Implemented (11)
 - ADR-0001: Pi-hole v6 Backup Application Architecture
 - ADR-0002: Offline Static Assets (Remove CDN Dependencies)
 - ADR-0003: Single Container Architecture
+- ADR-0004: Manual Backup Trigger with UI Refresh on Completion
 - ADR-0005: Testing Strategy and Workflow
 - ADR-0006: GitHub Actions Docker Image Publishing
 - ADR-0007: GitHub Actions Test Workflow Integration
@@ -47,9 +52,6 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0009: Backup Failure Notifications
 - ADR-0010: Replace Encrypted Database Fields with Environment Variables
 - ADR-0011: Bug Review Findings and Remediation Plan
-
-### Proposed (1)
-- ADR-0004: Manual Backup Trigger with UI Refresh on Completion
 
 ---
 
