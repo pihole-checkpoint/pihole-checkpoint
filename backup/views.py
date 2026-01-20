@@ -23,6 +23,7 @@ def dashboard(request):
 
     # Get Pi-hole credential status from environment
     credential_status = CredentialService.get_status()
+    credentials_configured = CredentialService.is_configured()
 
     return render(
         request,
@@ -31,6 +32,7 @@ def dashboard(request):
             "config": config,
             "backups": backups,
             "credential_status": credential_status,
+            "credentials_configured": credentials_configured,
         },
     )
 

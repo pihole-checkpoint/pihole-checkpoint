@@ -14,10 +14,15 @@
 
 {% csrf_token %}
 
-{% if not config %}
+{% if not credentials_configured %}
 <div class="alert alert-warning">
     <i class="bi bi-exclamation-triangle"></i>
-    No Pi-hole configured yet. <a href="{% url 'settings' %}">Configure your Pi-hole</a> to get started.
+    No Pi-hole configured yet. Set <code>PIHOLE_URL</code> and <code>PIHOLE_PASSWORD</code> environment variables to get started.
+</div>
+{% elif not config %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Pi-hole credentials configured. <a href="{% url 'settings' %}">Configure backup schedule</a> to start automatic backups.
 </div>
 {% else %}
 
