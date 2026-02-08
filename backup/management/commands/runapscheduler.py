@@ -2,7 +2,6 @@
 
 import logging
 import threading
-from functools import partial
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -114,8 +113,9 @@ def schedule_backup_jobs(scheduler):
         # Add job with concurrency controls
         # Use partial to pass config_id, so each job only backs up its own config
         scheduler.add_job(
-            partial(run_backup_job_for_config, config.id),
+            run_backup_job_for_config,
             trigger=trigger,
+            args=[config.id],
             id=job_id,
             name=f"Backup {config.name}",
             replace_existing=True,
