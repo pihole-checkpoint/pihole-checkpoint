@@ -1,4 +1,5 @@
 import logging
+import os
 
 from django.conf import settings
 from django.contrib import messages
@@ -82,7 +83,10 @@ def test_connection(request):
             password=creds["password"],
             verify_ssl=creds["verify_ssl"],
         )
-        version_info = client.test_connection()
+        try:
+            version_info = client.test_connection()
+        finally:
+            client.close()
 
         version = version_info.get("version", {}).get("core", {}).get("local", {}).get("version", "unknown")
 
@@ -202,13 +206,14 @@ def download_backup(request, backup_id):
 
     # Use Path.open() which FileResponse will properly close
     # FileResponse takes ownership of the file object and closes it when done
+    f = filepath.open("rb")
     response = FileResponse(
-        filepath.open("rb"),
+        f,
         as_attachment=True,
         filename=record.filename,
     )
-    # Set content length for proper download progress
-    response["Content-Length"] = filepath.stat().st_size
+    # Set content length from open fd to avoid TOCTOU race with retention cleanup
+    response["Content-Length"] = os.fstat(f.fileno()).st_size
     return response
 
 

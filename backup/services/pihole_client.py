@@ -17,6 +17,17 @@ class PiholeV6Client:
         self.session_id = None
         self._session = requests.Session()
 
+    def close(self):
+        """Close the underlying requests session."""
+        self._session.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+
     def _get_url(self, endpoint: str) -> str:
         """Build full URL for an endpoint.
 

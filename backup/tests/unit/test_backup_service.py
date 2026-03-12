@@ -320,8 +320,8 @@ class TestBackupServiceGenerateFilename:
         """_generate_filename should include timestamp."""
         service = BackupService(pihole_config)
 
-        with patch("backup.services.backup_service.datetime") as mock_datetime:
-            mock_datetime.now.return_value = datetime(2024, 1, 15, 10, 30, 45)
+        with patch("backup.services.backup_service.timezone") as mock_tz:
+            mock_tz.now.return_value = datetime(2024, 1, 15, 10, 30, 45)
             filename = service._generate_filename()
 
             assert "20240115_103045" in filename

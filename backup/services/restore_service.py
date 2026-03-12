@@ -67,12 +67,14 @@ class RestoreService:
                     raise ValueError("Backup file corrupted (checksum mismatch)")
 
             # Upload to Pi-hole using environment credentials
-            client = self._get_client()
-
             with open(filepath, "rb") as f:
                 backup_data = f.read()
 
-            result = client.upload_teleporter_backup(backup_data)
+            client = self._get_client()
+            try:
+                result = client.upload_teleporter_backup(backup_data)
+            finally:
+                client.close()
             logger.info(f"Backup {record.filename} restored successfully")
 
             # Send success notification (isolated from restore success)
