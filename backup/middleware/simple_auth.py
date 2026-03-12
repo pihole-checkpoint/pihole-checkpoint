@@ -29,7 +29,6 @@ class SimpleAuthMiddleware:
         allowed_paths = [
             reverse("login"),
             reverse("health_check"),
-            "/admin/",
         ]
 
         if any(request.path.startswith(path) for path in allowed_paths):

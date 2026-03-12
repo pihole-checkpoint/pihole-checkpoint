@@ -18,13 +18,30 @@ start_scheduler() {
 echo "[2/3] Starting backup scheduler..."
 start_scheduler
 
-# Monitor and restart scheduler if it dies
+# Monitor and restart scheduler if it dies (with exponential backoff)
+MAX_RESTARTS=10
 monitor_scheduler() {
+    local restart_count=0
+    local backoff=30
     while true; do
-        sleep 30
+        sleep "$backoff"
         if ! kill -0 $SCHEDULER_PID 2>/dev/null; then
-            echo "WARNING: Scheduler process died, restarting..."
+            restart_count=$((restart_count + 1))
+            if [ "$restart_count" -gt "$MAX_RESTARTS" ]; then
+                echo "ERROR: Scheduler exceeded $MAX_RESTARTS restarts, giving up"
+                return 1
+            fi
+            echo "WARNING: Scheduler process died (restart $restart_count/$MAX_RESTARTS), restarting in ${backoff}s..."
             start_scheduler
+            # Exponential backoff: 30, 60, 120, 240, ... capped at 300s
+            backoff=$((backoff * 2))
+            if [ "$backoff" -gt 300 ]; then
+                backoff=300
+            fi
+        else
+            # Scheduler is healthy — reset backoff and counter
+            restart_count=0
+            backoff=30
         fi
     done
 }
@@ -38,15 +55,21 @@ cleanup() {
     echo "Shutting down..."
     kill $MONITOR_PID 2>/dev/null || true
     kill $SCHEDULER_PID 2>/dev/null || true
+    kill $GUNICORN_PID 2>/dev/null || true
     wait $SCHEDULER_PID 2>/dev/null || true
+    wait $GUNICORN_PID 2>/dev/null || true
     exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# Start Gunicorn (foreground)
+# Start Gunicorn (background, so trap can fire)
 echo "[3/3] Starting web server..."
-exec uv run gunicorn config.wsgi:application \
+uv run gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \
     --access-logfile - \
-    --error-logfile -
+    --error-logfile - &
+GUNICORN_PID=$!
+
+# Wait for gunicorn — allows bash to receive signals
+wait $GUNICORN_PID

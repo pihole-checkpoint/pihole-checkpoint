@@ -3,7 +3,8 @@
 import atexit
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+
+from django.utils import timezone
 
 from .base import NotificationEvent, NotificationPayload, NotificationProvider
 from .config import get_notification_settings
@@ -154,7 +155,7 @@ def safe_send_notification(
             title=title,
             message=message,
             pihole_name=pihole_name,
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            timestamp=timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
             details=details,
         )
         service.send_notification(payload)

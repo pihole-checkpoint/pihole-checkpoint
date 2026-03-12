@@ -4,7 +4,6 @@ import hashlib
 import logging
 import re
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -39,7 +38,7 @@ class BackupService:
 
     def _generate_filename(self) -> str:
         """Generate a unique filename for the backup."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
         # Add short UUID suffix for uniqueness (prevents collision within same second)
         unique_suffix = uuid.uuid4().hex[:8]
 
@@ -83,7 +82,10 @@ class BackupService:
         try:
             # Download backup from Pi-hole
             client = self._get_client()
-            backup_data = client.download_teleporter_backup()
+            try:
+                backup_data = client.download_teleporter_backup()
+            finally:
+                client.close()
 
             # Save to file
             with open(filepath, "wb") as f:
