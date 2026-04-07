@@ -288,7 +288,7 @@ dependencies = [
     { name = "whitenoise" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "factory-boy" },
     { name = "freezegun" },
@@ -305,20 +305,23 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.10,<4.0" },
     { name = "django", specifier = ">=5.0,<6.0" },
     { name = "django-apscheduler", specifier = ">=0.6" },
-    { name = "factory-boy", marker = "extra == 'dev'", specifier = ">=3.3" },
-    { name = "freezegun", marker = "extra == 'dev'", specifier = ">=1.2" },
     { name = "gunicorn", specifier = ">=21.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1" },
-    { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.7" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "requests", specifier = ">=2.31" },
-    { name = "responses", marker = "extra == 'dev'", specifier = ">=0.24" },
-    { name = "ruff", marker = "extra == 'dev'" },
     { name = "whitenoise", specifier = ">=6.6" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "factory-boy", specifier = ">=3.3" },
+    { name = "freezegun", specifier = ">=1.2" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-cov", specifier = ">=4.1" },
+    { name = "pytest-django", specifier = ">=4.7" },
+    { name = "pytest-mock", specifier = ">=3.12" },
+    { name = "responses", specifier = ">=0.24" },
+    { name = "ruff" },
+]
 
 [[package]]
 name = "pluggy"
