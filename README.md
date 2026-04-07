@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo_background.png" alt="Pi-hole Checkpoint" width="500">
+  <img width="896" height="467" alt="Pi-hole Checkpoint logo" src="https://github.com/user-attachments/assets/ad0caaa2-e052-438e-89f1-d6fcccfc2bf6" />
 </p>
 
 # Pi-hole Checkpoint
