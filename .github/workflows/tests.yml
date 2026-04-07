@@ -1,24 +1,14 @@
 name: Tests
 
 on:
-  pull_request:
-    branches: [main, master]
-  push:
-    branches: [main, master]
-    tags:
-      - 'v*'
-
-concurrency:
-  group: test-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  workflow_call: {}
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -33,9 +23,8 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          SECRET_KEY: 'test-secret-key-for-ci'
-        run: |
-          uv run pytest --cov=backup --cov-report=xml --cov-report=term-missing
+          SECRET_KEY: "test-secret-key-for-ci"
+        run: uv run pytest --cov=backup --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -46,10 +35,9 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4

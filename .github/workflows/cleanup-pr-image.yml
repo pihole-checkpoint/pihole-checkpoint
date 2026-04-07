@@ -1,0 +1,50 @@
+name: Cleanup PR Image
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  PACKAGE_NAME: pihole-checkpoint
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Delete PR image from GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: pr-${{ github.event.pull_request.number }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "Looking up image version for tag: ${TAG}"
+
+          # Resolve the package version ID for the PR tag (try org then user endpoint)
+          VERSION_ID=$(
+            gh api "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+              --paginate --jq "[.[] | select((.metadata.container.tags // [])[] == \"${TAG}\") | .id][0]" 2>/dev/null
+          ) || VERSION_ID=$(
+            gh api "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+              --paginate --jq "[.[] | select((.metadata.container.tags // [])[] == \"${TAG}\") | .id][0]" 2>/dev/null
+          ) || true
+
+          if [ -z "${VERSION_ID}" ] || [ "${VERSION_ID}" = "null" ]; then
+            echo "No image found with tag ${TAG} — nothing to clean up"
+            exit 0
+          fi
+
+          echo "Deleting version ${VERSION_ID} (tag: ${TAG})"
+          if ! gh api --method DELETE \
+            "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" 2>/dev/null \
+          && ! gh api --method DELETE \
+            "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" 2>/dev/null; then
+            echo "::warning::Could not delete ${TAG} (it may be the last tagged version — delete the package manually if needed)"
+            exit 0
+          fi
+
+          echo "Deleted ${TAG}"
