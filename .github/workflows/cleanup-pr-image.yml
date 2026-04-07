@@ -27,10 +27,10 @@ jobs:
           # Resolve the package version ID for the PR tag (try org then user endpoint)
           VERSION_ID=$(
             gh api "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
-              --paginate --jq "[.[] | select((.metadata.container.tags // [])[] == \"${TAG}\") | .id][0]" 2>/dev/null
+              --paginate --jq '.[] | select(any((.metadata.container.tags // [])[]; . == "'"${TAG}"'")) | .id' 2>/dev/null | head -n 1
           ) || VERSION_ID=$(
             gh api "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
-              --paginate --jq "[.[] | select((.metadata.container.tags // [])[] == \"${TAG}\") | .id][0]" 2>/dev/null
+              --paginate --jq '.[] | select(any((.metadata.container.tags // [])[]; . == "'"${TAG}"'")) | .id' 2>/dev/null | head -n 1
           ) || true
 
           if [ -z "${VERSION_ID}" ] || [ "${VERSION_ID}" = "null" ]; then
