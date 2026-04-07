@@ -4,54 +4,19 @@ on:
   workflow_call: {}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync --frozen --all-extras
-
-      - name: Run tests with coverage
-        env:
-          SECRET_KEY: "test-secret-key-for-ci"
-        run: uv run pytest --cov=backup --cov-report=xml --cov-report=term-missing
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
-
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+      - uses: ljmerza/misc-actions/actions/ruff-lint@v1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ljmerza/misc-actions/actions/python-test@v1
         with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync --frozen --all-extras
-
-      - name: Run Ruff linter
-        run: uv run ruff check .
-
-      - name: Run Ruff formatter check
-        run: uv run ruff format --check .
+          coverage-source: backup
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          env-vars: |
+            SECRET_KEY=test-secret-key-for-ci
