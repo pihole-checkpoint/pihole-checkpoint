@@ -4,17 +4,9 @@ on:
   pull_request:
     types: [closed]
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   cleanup:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    steps:
-      - uses: ljmerza/misc-actions/actions/cleanup-pr-image@v1
-        with:
-          package-name: pihole-checkpoint
-          tag: pr-${{ github.event.pull_request.number }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+    uses: ljmerza/misc-actions/.github/workflows/cleanup-pr-image.yml@v2
+    with:
+      package-name: pihole-checkpoint
+    secrets: inherit
