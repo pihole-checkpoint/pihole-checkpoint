@@ -25,7 +25,7 @@ ADR-0013, Issue 7 documents this as a known limitation. Users running primary + 
 
 ### Reference Implementation
 
-The [nodered-backup](../../../home/cubxi/docker/projects/nodered-backup/) project in this repo family solves the same problem using an **environment variable prefix pattern**: each instance stores an `env_prefix` in the DB, and credentials are read from `FLOWHISTORY_{PREFIX}_USER`/`FLOWHISTORY_{PREFIX}_PASS` at runtime. Credentials never touch the database.
+The `nodered-backup` project in this repo family solves the same problem using an **environment variable prefix pattern**: each instance stores an `env_prefix` in the DB, and credentials are read from `FLOWHISTORY_{PREFIX}_USER`/`FLOWHISTORY_{PREFIX}_PASS` at runtime. Credentials never touch the database.
 
 ---
 
@@ -398,4 +398,4 @@ Add `env_prefix`, `pihole_url`, `verify_ssl` to `PiholeConfigForm.Meta.fields`. 
 - [ADR-0001](0001-pihole-backup-architecture.md) — Original architecture, Section 5: multi-instance model design
 - [ADR-0010](0010-env-var-credentials.md) — Env var credential decision (philosophy preserved here)
 - [ADR-0013](0013-reliability-security-fixes.md) — Issue 1 (per-config scheduler) and Issue 7 (single-config UI limitation)
-- [nodered-backup `env_prefix` pattern](../../../home/cubxi/docker/projects/nodered-backup/backup/models.py) — Reference implementation
+- nodered-backup `env_prefix` pattern — Reference implementation
