@@ -1,14 +1,27 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Settings - Pi-hole Checkpoint{% endblock %}
+{% block title %}{% if is_new %}Add Instance{% else %}{{ config.name }} Settings{% endif %} - Pi-hole Checkpoint{% endblock %}
+
+{% block breadcrumb %}
+{% if not is_new and config %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Instances</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'instance_dashboard' config.id %}">{{ config.name }}</a></li>
+        <li class="breadcrumb-item active">Settings</li>
+    </ol>
+</nav>
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="bi bi-gear"></i> Settings</h1>
+    <h1><i class="bi bi-gear"></i> {% if is_new %}Add Instance{% else %}Settings{% endif %}</h1>
 </div>
 
 <div class="row">
     <div class="col-lg-8">
+        {% if not is_new and credential_status %}
         <!-- Pi-hole Connection Status -->
         <div class="card mb-4">
             <div class="card-header">
@@ -57,19 +70,24 @@
                 </button>
                 {% if not credential_status.url or not credential_status.has_password %}
                 <div class="form-text text-danger mt-2">
-                    Set PIHOLE_URL and PIHOLE_PASSWORD environment variables to enable connection.
+                    {% if config.env_prefix %}
+                    Set <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> and <code>PIHOLE_{{ config.env_prefix|upper }}_PASSWORD</code> environment variables to enable connection.
+                    {% else %}
+                    Set <code>PIHOLE_URL</code> and <code>PIHOLE_PASSWORD</code> environment variables to enable connection.
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Backup Schedule Form -->
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Backup Schedule</h5>
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> {% if is_new %}Instance Configuration{% else %}Backup Schedule{% endif %}</h5>
             </div>
             <div class="card-body">
-                <form method="post" id="configForm">
+                <form method="post" id="configForm" action="{% if is_new %}{% url 'add_instance' %}{% else %}{% url 'instance_settings' config.id %}{% endif %}">
                     {% csrf_token %}
 
                     <div class="mb-3">
@@ -78,7 +96,19 @@
                         {% if form.name.errors %}
                         <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
                         {% endif %}
-                        <div class="form-text">A friendly name for this backup configuration</div>
+                        <div class="form-text">A friendly name for this Pi-hole instance</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_env_prefix" class="form-label">Environment Variable Prefix</label>
+                        {{ form.env_prefix }}
+                        {% if form.env_prefix.errors %}
+                        <div class="invalid-feedback d-block">{{ form.env_prefix.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">
+                            Determines which env vars to read. E.g., prefix <code>PRIMARY</code> reads
+                            <code>PIHOLE_PRIMARY_URL</code>, <code>PIHOLE_PRIMARY_PASSWORD</code>, <code>PIHOLE_PRIMARY_VERIFY_SSL</code>
+                        </div>
                     </div>
 
                     <hr>
@@ -130,12 +160,30 @@
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg"></i> Save Settings
+                            <i class="bi bi-check-lg"></i> {% if is_new %}Create Instance{% else %}Save Settings{% endif %}
                         </button>
                     </div>
                 </form>
             </div>
         </div>
+
+        {% if not is_new and config %}
+        <!-- Danger Zone -->
+        <div class="card mt-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Danger Zone</h5>
+            </div>
+            <div class="card-body">
+                <p>Permanently delete this instance and all its backup records and files.</p>
+                <form method="post" action="{% url 'delete_instance' config.id %}" onsubmit="return confirm('Delete instance &quot;{{ config.name }}&quot; and all its backups? This cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Instance
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <div class="col-lg-4">
@@ -145,12 +193,14 @@
             </div>
             <div class="card-body">
                 <h6>Environment Variables</h6>
-                <p class="small">Pi-hole connection settings are configured via environment variables in your <code>.env</code> file or Docker Compose:</p>
+                <p class="small">Pi-hole connection settings are configured via environment variables in your <code>.env</code> file or Docker Compose.</p>
+                <p class="small">Each instance uses a prefix to determine which env vars to read:</p>
                 <ul class="small">
-                    <li><code>PIHOLE_URL</code> - Pi-hole URL (e.g., https://192.168.1.100)</li>
-                    <li><code>PIHOLE_PASSWORD</code> - Pi-hole admin password</li>
-                    <li><code>PIHOLE_VERIFY_SSL</code> - Enable SSL verification (default: false)</li>
+                    <li><code>PIHOLE_{PREFIX}_URL</code> - Pi-hole URL</li>
+                    <li><code>PIHOLE_{PREFIX}_PASSWORD</code> - Admin password</li>
+                    <li><code>PIHOLE_{PREFIX}_VERIFY_SSL</code> - SSL verification (default: false)</li>
                 </ul>
+                <p class="small text-muted">Example: prefix <code>PRIMARY</code> reads <code>PIHOLE_PRIMARY_URL</code></p>
 
                 <h6>Backup Frequency</h6>
                 <ul class="small">
@@ -168,6 +218,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if not is_new and config %}
 <script>
 /**
  * Test connection to Pi-hole using environment credentials.
@@ -179,7 +230,7 @@ async function testConnection(btn) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing...';
 
     try {
-        const response = await fetch('{% url "test_connection" %}', {
+        const response = await fetch('{% url "test_connection" config.id %}', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
@@ -202,4 +253,5 @@ async function testConnection(btn) {
     }
 }
 </script>
+{% endif %}
 {% endblock %}

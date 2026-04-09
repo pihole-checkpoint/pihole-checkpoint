@@ -1,16 +1,18 @@
+import logging
+import os
+
+from django.conf import settings
 from django.db import models
+
+logger = logging.getLogger(__name__)
 
 
 class PiholeConfig(models.Model):
     """Configuration for a Pi-hole instance.
 
-    Note: Pi-hole credentials (URL, password, verify_ssl) are now read from
-    environment variables. See CredentialService for details.
-
-    Known Limitation: While this model supports multiple configurations, the
-    current UI (dashboard and settings views) only displays a single instance
-    using .first(). Multi-instance support is a potential future enhancement.
-    See ADR-0013, Issue 7 for details.
+    Credentials are read from environment variables using the env_prefix pattern:
+    PIHOLE_{PREFIX}_URL, PIHOLE_{PREFIX}_PASSWORD, PIHOLE_{PREFIX}_VERIFY_SSL.
+    See ADR-0014 for details.
     """
 
     FREQUENCY_CHOICES = [
@@ -30,6 +32,12 @@ class PiholeConfig(models.Model):
     ]
 
     name = models.CharField(max_length=100, default="Primary Pi-hole")
+    env_prefix = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)",
+    )
 
     backup_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="daily")
     backup_time = models.TimeField(default="03:00", help_text="Time for daily/weekly backups")
@@ -52,6 +60,33 @@ class PiholeConfig(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_pihole_credentials(self):
+        """Read Pi-hole credentials from environment variables using configured prefix.
+
+        Env var pattern: PIHOLE_{PREFIX}_URL, PIHOLE_{PREFIX}_PASSWORD, PIHOLE_{PREFIX}_VERIFY_SSL
+        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL (when env_prefix is empty)
+        """
+        if self.env_prefix:
+            prefix = self.env_prefix.upper()
+            url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
+            password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
+            verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
+        else:
+            # Legacy single-instance fallback
+            url = getattr(settings, "PIHOLE_URL", "") or ""
+            password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
+            verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
+        return {
+            "url": url,
+            "password": password,
+            "verify_ssl": verify_ssl,
+        }
+
+    def is_credentials_configured(self):
+        """Check if Pi-hole credentials are available in the environment."""
+        creds = self.get_pihole_credentials()
+        return bool(creds["url"] and creds["password"])
 
 
 class BackupRecord(models.Model):

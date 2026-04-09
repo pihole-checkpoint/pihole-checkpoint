@@ -133,9 +133,9 @@ class TestRestoreServiceRestoreBackup:
             service.restore_backup(record)
 
             mock_client_class.assert_called_once_with(
-                base_url=settings.PIHOLE_URL,
-                password=settings.PIHOLE_PASSWORD,
-                verify_ssl=settings.PIHOLE_VERIFY_SSL,
+                base_url="https://pihole.local",
+                password="testpassword123",
+                verify_ssl=False,
             )
 
     def test_restore_propagates_api_error(self, pihole_config, temp_backup_dir):
