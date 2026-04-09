@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from backup.models import PiholeConfig
+from backup.models import BackupRecord, PiholeConfig
 from backup.services.discovery_service import discover_instances_from_env
 
 
@@ -139,3 +139,46 @@ class TestDiscoverInstancesFromEnv:
 
         config = PiholeConfig.objects.get(env_prefix="GYM")
         assert config.backup_frequency == "daily"  # model default
+
+    def test_removes_instance_when_env_var_gone(self):
+        """Instance should be removed when its PIHOLE_{PREFIX}_URL env var is removed."""
+        PiholeConfig.objects.create(name="Old Instance", env_prefix="OLD")
+        env = _clean_env({"PIHOLE_GYM_URL": "https://192.168.1.186", "PIHOLE_GYM_PASSWORD": "secret"})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+
+        assert "OLD" in result["removed"]
+        assert not PiholeConfig.objects.filter(env_prefix="OLD").exists()
+        assert "GYM" in result["created"]
+
+    def test_removes_backup_files_on_instance_removal(self, tmp_path, settings):
+        """Removing an instance should also delete its backup files from disk."""
+        settings.BACKUP_DIR = tmp_path
+        config = PiholeConfig.objects.create(name="Old", env_prefix="OLD")
+        backup_file = tmp_path / "old_backup.zip"
+        backup_file.write_bytes(b"fake zip")
+        BackupRecord.objects.create(
+            config=config,
+            filename="old_backup.zip",
+            file_path=str(backup_file),
+            file_size=8,
+            status="success",
+        )
+
+        env = _clean_env({})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+
+        assert "OLD" in result["removed"]
+        assert not backup_file.exists()
+        assert not BackupRecord.objects.filter(config=config).exists()
+
+    def test_does_not_remove_instance_with_env_var_present(self):
+        """Instance should NOT be removed when its env var is still set."""
+        PiholeConfig.objects.create(name="Gym", env_prefix="GYM")
+        env = _clean_env({"PIHOLE_GYM_URL": "https://192.168.1.186", "PIHOLE_GYM_PASSWORD": "secret"})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+
+        assert result["removed"] == []
+        assert "GYM" in result["skipped"]

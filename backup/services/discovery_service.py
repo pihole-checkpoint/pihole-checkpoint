@@ -3,7 +3,9 @@
 import logging
 import os
 import re
+from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from backup.models import PiholeConfig
@@ -78,18 +80,53 @@ def _build_config_kwargs(prefix):
     return kwargs
 
 
+def _delete_backup_files(config):
+    """Delete backup files from disk for a config instance."""
+    backup_dir = Path(settings.BACKUP_DIR).resolve()
+    for record in config.backups.all():
+        if not record.file_path:
+            continue
+        filepath = Path(record.file_path).resolve()
+        try:
+            filepath.relative_to(backup_dir)
+        except ValueError:
+            logger.warning("Skipping file outside backup dir: %s", filepath)
+            continue
+        if filepath.exists():
+            try:
+                filepath.unlink()
+            except OSError as e:
+                logger.error("Failed to delete backup file %s: %s", filepath, e)
+
+
 def discover_instances_from_env(force=False):
-    """Scan environment for PIHOLE_*_URL vars and create missing PiholeConfig rows.
+    """Scan environment for PIHOLE_*_URL vars, create/update/remove PiholeConfig rows.
+
+    Instances whose PIHOLE_{PREFIX}_URL env var is no longer present are removed
+    along with their backup records and files.
 
     Args:
         force: If True, re-apply env var values to existing instances
                (except credentials, which are always runtime).
 
     Returns:
-        dict with "created", "skipped", and "updated" lists of prefixes.
+        dict with "created", "skipped", "updated", and "removed" lists of prefixes.
     """
     prefixes = _extract_prefixes()
-    created, skipped, updated = [], [], []
+    created, skipped, updated, removed = [], [], [], []
+
+    # Remove instances whose env vars are gone
+    for config in PiholeConfig.objects.all():
+        if config.env_prefix not in prefixes:
+            logger.info(
+                "Removing instance %s (pk=%d) — PIHOLE_%s_URL no longer set",
+                config.name,
+                config.pk,
+                config.env_prefix,
+            )
+            _delete_backup_files(config)
+            removed.append(config.env_prefix)
+            config.delete()
 
     for prefix in sorted(prefixes):
         existing = PiholeConfig.objects.filter(env_prefix=prefix).first()
@@ -140,4 +177,4 @@ def discover_instances_from_env(force=False):
             logger.info("Created instance %s (pk=%d) from env vars", prefix, config.pk)
             created.append(prefix)
 
-    return {"created": created, "skipped": skipped, "updated": updated}
+    return {"created": created, "skipped": skipped, "updated": updated, "removed": removed}

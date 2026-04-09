@@ -18,6 +18,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         result = discover_instances_from_env(force=options["force"])
 
+        if result["removed"]:
+            self.stdout.write(f"Removed instances: {', '.join(result['removed'])}")
         if result["created"]:
             self.stdout.write(f"Created instances: {', '.join(result['created'])}")
         if result["updated"]:
