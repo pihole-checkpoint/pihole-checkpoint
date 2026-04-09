@@ -84,17 +84,12 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center small text-muted">
-                        <span>
-                            <i class="bi bi-clock"></i>
-                            {{ item.config.get_backup_frequency_display }}
-                            {% if item.config.backup_frequency == 'daily' or item.config.backup_frequency == 'weekly' %}
-                            at {{ item.config.backup_time|time:"H:i" }}
-                            {% endif %}
-                        </span>
-                        <span>
-                            <code class="small">{{ item.config.env_prefix }}</code>
-                        </span>
+                    <div class="small text-muted">
+                        <i class="bi bi-clock"></i>
+                        {{ item.config.get_backup_frequency_display }}
+                        {% if item.config.backup_frequency == 'daily' or item.config.backup_frequency == 'weekly' %}
+                        at {{ item.config.backup_time|time:"H:i" }}
+                        {% endif %}
                     </div>
                 </div>
             </div>
