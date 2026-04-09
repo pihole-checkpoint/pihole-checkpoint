@@ -6,11 +6,10 @@ services:
     volumes:
       - ./data:/app/data
       - ./backups:/app/backups
+    env_file:
+      - .env
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-long-random-string}
-      - PIHOLE_PRIMARY_URL=${PIHOLE_PRIMARY_URL}
-      - PIHOLE_PRIMARY_PASSWORD=${PIHOLE_PRIMARY_PASSWORD}
-      - PIHOLE_PRIMARY_VERIFY_SSL=${PIHOLE_PRIMARY_VERIFY_SSL:-false}
       - TIME_ZONE=${TIME_ZONE:-UTC}
       - REQUIRE_AUTH=${REQUIRE_AUTH:-false}
       - APP_PASSWORD=${APP_PASSWORD:-}

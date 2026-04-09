@@ -1,7 +1,6 @@
 """Tests for instance management views (delete_instance)."""
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -17,8 +16,7 @@ class TestDeleteInstance:
     def test_deletes_instance_and_redirects(self, client, pihole_config, auth_disabled_settings):
         """Deleting an instance should remove it and redirect to dashboard."""
         url = reverse("delete_instance", args=[pihole_config.id])
-        with patch("backup.management.commands.runapscheduler.refresh_backup_schedules"):
-            response = client.post(url)
+        response = client.post(url)
 
         assert response.status_code == 302
         assert response.url == reverse("dashboard")
@@ -31,8 +29,7 @@ class TestDeleteInstance:
         BackupRecordFactory(config=pihole_config, file_path=str(filepath))
 
         url = reverse("delete_instance", args=[pihole_config.id])
-        with patch("backup.management.commands.runapscheduler.refresh_backup_schedules"):
-            client.post(url)
+        client.post(url)
 
         assert BackupRecord.objects.count() == 0
 
@@ -43,8 +40,7 @@ class TestDeleteInstance:
         BackupRecordFactory(config=pihole_config, file_path=str(filepath))
 
         url = reverse("delete_instance", args=[pihole_config.id])
-        with patch("backup.management.commands.runapscheduler.refresh_backup_schedules"):
-            client.post(url)
+        client.post(url)
 
         assert not filepath.exists()
 
@@ -56,8 +52,7 @@ class TestDeleteInstance:
         )
 
         url = reverse("delete_instance", args=[pihole_config.id])
-        with patch("backup.management.commands.runapscheduler.refresh_backup_schedules"):
-            response = client.post(url)
+        response = client.post(url)
 
         assert response.status_code == 302
         assert not PiholeConfig.objects.filter(id=pihole_config.id).exists()
@@ -70,8 +65,7 @@ class TestDeleteInstance:
         )
 
         url = reverse("delete_instance", args=[pihole_config.id])
-        with patch("backup.management.commands.runapscheduler.refresh_backup_schedules"):
-            response = client.post(url)
+        response = client.post(url)
 
         assert response.status_code == 302
         assert Path("/etc/passwd").exists()
@@ -81,18 +75,6 @@ class TestDeleteInstance:
         url = reverse("delete_instance", args=[99999])
         response = client.post(url)
         assert response.status_code == 404
-
-    def test_schedule_refresh_failure_shows_warning(self, client, pihole_config, auth_disabled_settings):
-        """If schedule refresh fails, instance is still deleted with a warning."""
-        url = reverse("delete_instance", args=[pihole_config.id])
-        with patch(
-            "backup.management.commands.runapscheduler.refresh_backup_schedules",
-            side_effect=RuntimeError("scheduler error"),
-        ):
-            response = client.post(url)
-
-        assert response.status_code == 302
-        assert not PiholeConfig.objects.filter(id=pihole_config.id).exists()
 
     def test_only_allows_post(self, client, pihole_config, auth_disabled_settings):
         """Should reject GET requests."""

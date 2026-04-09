@@ -140,10 +140,28 @@ class TestDiscoverInstancesFromEnv:
         config = PiholeConfig.objects.get(env_prefix="GYM")
         assert config.backup_frequency == "daily"  # model default
 
-    def test_removes_instance_when_env_var_gone(self):
-        """Instance should be removed when its PIHOLE_{PREFIX}_URL env var is removed."""
+    def test_marks_instance_not_configured_when_env_var_gone(self):
+        """Instance should be marked not_configured when its env var is removed (default behavior)."""
         PiholeConfig.objects.create(name="Old Instance", env_prefix="OLD")
         env = _clean_env({"PIHOLE_GYM_URL": "https://192.168.1.186", "PIHOLE_GYM_PASSWORD": "secret"})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+
+        assert result["removed"] == []
+        old = PiholeConfig.objects.get(env_prefix="OLD")
+        assert old.connection_status == "not_configured"
+        assert "GYM" in result["created"]
+
+    def test_removes_instance_when_prune_enabled(self):
+        """Instance should be removed when PRUNE_STALE_INSTANCES=true."""
+        PiholeConfig.objects.create(name="Old Instance", env_prefix="OLD")
+        env = _clean_env(
+            {
+                "PIHOLE_GYM_URL": "https://192.168.1.186",
+                "PIHOLE_GYM_PASSWORD": "secret",
+                "PRUNE_STALE_INSTANCES": "true",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
 
@@ -165,7 +183,7 @@ class TestDiscoverInstancesFromEnv:
             status="success",
         )
 
-        env = _clean_env({})
+        env = _clean_env({"PRUNE_STALE_INSTANCES": "true"})
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
 

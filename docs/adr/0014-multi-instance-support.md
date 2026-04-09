@@ -1,6 +1,6 @@
 # ADR-0014: Multi-Instance Pi-hole Support
 
-**Status:** Implemented
+**Status:** Implemented (with deviations noted below)
 **Date:** 2026-04-07
 
 ---
@@ -113,11 +113,11 @@ class PiholeConfig(models.Model):
 - Add `env_prefix` field (required, default `"PRIMARY"`)
 - Data migration: existing `PiholeConfig` rows get `env_prefix = "PRIMARY"`
 
-### Phase 2: Credential Service Refactor
+### Phase 2: Credential Service Refactor *(implemented as designed)*
 
 **File:** `backup/services/credential_service.py`
 
-Refactor to delegate to the config's credential method:
+Refactored to delegate to the config's credential method:
 
 ```python
 class CredentialService:
@@ -235,15 +235,17 @@ def instance_settings(request, config_id):
     # ...
 ```
 
-**New `add_instance()`** — renders blank form, creates new config on POST.
+**Implementation note:** `add_instance()` was not implemented — instances are auto-discovered from environment variables via the `discover_instances` management command (run on startup). Manual instance creation via the UI is not currently supported.
 
-**New `delete_instance(config_id)`** — POST-only, deletes config + all backup records/files. Confirmation required.
+**New `delete_instance(config_id)`** — POST-only, deletes config + all backup records/files.
 
 **Refactored `create_backup(config_id)`** — use `get_object_or_404` instead of `.first()`.
 
 **Refactored `test_connection(config_id)`** — load config by ID, call `CredentialService.get_credentials(config)`.
 
-**`settings_redirect()`** — redirects `/settings/` to first config's settings page or add-instance page.
+**`settings_redirect()`** — redirects `/settings/` to first config's settings page or dashboard.
+
+**Auto-discovery behavior:** On startup, `discover_instances_from_env()` scans for `PIHOLE_{PREFIX}_URL` environment variables. Instances whose env vars are no longer present are marked as "not_configured" (or removed if `PRUNE_STALE_INSTANCES=true`).
 
 ### Phase 6: Templates
 
@@ -348,7 +350,7 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 
 ### Negative
 
-- Adding a new Pi-hole instance requires both a container restart (for env vars) and a UI action (to create the config) — two-step process
+- Adding a new Pi-hole instance requires a container restart (env vars are auto-discovered on startup)
 - More URL patterns and views to maintain
 - Template count increases (instance_list, instance_dashboard)
 

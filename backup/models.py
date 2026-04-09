@@ -1,6 +1,7 @@
 import logging
 import os
 
+from django.core.validators import RegexValidator
 from django.db import models
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,12 @@ class PiholeConfig(models.Model):
         max_length=50,
         default="PRIMARY",
         help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)",
+        validators=[
+            RegexValidator(
+                regex=r"^[A-Z][A-Z0-9_]*$",
+                message="Prefix must start with a letter and contain only uppercase letters, numbers, and underscores.",
+            ),
+        ],
     )
 
     backup_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="daily")

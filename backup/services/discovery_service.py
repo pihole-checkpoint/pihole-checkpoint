@@ -118,18 +118,32 @@ def discover_instances_from_env(force=False):
     prefixes = _extract_prefixes()
     created, skipped, updated, removed = [], [], [], []
 
-    # Remove instances whose env vars are gone
+    # Mark instances whose env vars are gone as inactive (previously deleted them)
+    prune = os.environ.get("PRUNE_STALE_INSTANCES", "false").lower() in ("true", "1", "yes")
     for config in PiholeConfig.objects.all():
         if config.env_prefix not in prefixes:
-            logger.info(
-                "Removing instance %s (pk=%d) — PIHOLE_%s_URL no longer set",
-                config.name,
-                config.pk,
-                config.env_prefix,
-            )
-            _delete_backup_files(config)
-            removed.append(config.env_prefix)
-            config.delete()
+            if prune:
+                logger.info(
+                    "Removing instance %s (pk=%d) — PIHOLE_%s_URL no longer set",
+                    config.name,
+                    config.pk,
+                    config.env_prefix,
+                )
+                _delete_backup_files(config)
+                removed.append(config.env_prefix)
+                config.delete()
+            else:
+                logger.warning(
+                    "Instance %s (pk=%d) has no PIHOLE_%s_URL env var. "
+                    "Set PRUNE_STALE_INSTANCES=true to auto-remove stale instances on startup.",
+                    config.name,
+                    config.pk,
+                    config.env_prefix,
+                )
+                if config.connection_status != "not_configured":
+                    config.connection_status = "not_configured"
+                    config.connection_error = f"PIHOLE_{config.env_prefix}_URL environment variable not set"
+                    config.save(update_fields=["connection_status", "connection_error"])
 
     for prefix in sorted(prefixes):
         existing = PiholeConfig.objects.filter(env_prefix=prefix).first()

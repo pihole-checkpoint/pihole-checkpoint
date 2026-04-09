@@ -4,6 +4,8 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.db import models
+from django.db.models import Count, Sum
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -47,16 +49,19 @@ def dashboard(request):
         )
 
     # 0 or 2+ configs: show instance list with backup stats
+    configs_annotated = configs.annotate(
+        backup_count=Count("backups", filter=models.Q(backups__status="success")),
+        total_size=Sum("backups__file_size", filter=models.Q(backups__status="success"), default=0),
+    )
     config_data = []
-    for config in configs:
-        backups = config.backups.filter(status="success")
+    for config in configs_annotated:
         config_data.append(
             {
                 "config": config,
                 "credential_status": CredentialService.get_status(config),
                 "credentials_configured": CredentialService.is_configured(config),
-                "backup_count": backups.count(),
-                "total_size": sum(b.file_size for b in backups),
+                "backup_count": config.backup_count,
+                "total_size": config.total_size,
             }
         )
     return render(
@@ -212,12 +217,18 @@ def delete_backup(request, backup_id):
     if not config:
         logger.warning(f"Deleting orphaned backup record: {record.filename}")
         if record.file_path:
-            filepath = Path(record.file_path)
-            if filepath.exists():
-                try:
-                    filepath.unlink()
-                except OSError as e:
-                    logger.error(f"Failed to delete orphaned file: {e}")
+            backup_dir = Path(settings.BACKUP_DIR).resolve()
+            filepath = Path(record.file_path).resolve()
+            try:
+                filepath.relative_to(backup_dir)
+            except ValueError:
+                logger.warning("Skipping file outside backup dir: %s", filepath)
+            else:
+                if filepath.exists():
+                    try:
+                        filepath.unlink()
+                    except OSError as e:
+                        logger.error(f"Failed to delete orphaned file: {e}")
         record.delete()
         return JsonResponse({"success": True})
 

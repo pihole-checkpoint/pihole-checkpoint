@@ -39,8 +39,10 @@ class PiholeConfigForm(forms.ModelForm):
         value = self.cleaned_data.get("env_prefix", "").strip().upper()
         if not value:
             raise forms.ValidationError("An environment variable prefix is required.")
-        if not re.match(r"^[A-Z0-9_]+$", value):
-            raise forms.ValidationError("Only letters, numbers, and underscores are allowed.")
+        if not re.match(r"^[A-Z][A-Z0-9_]*$", value):
+            raise forms.ValidationError(
+                "The prefix must start with a letter and contain only letters, numbers, and underscores."
+            )
         # Check uniqueness among other configs
         qs = PiholeConfig.objects.filter(env_prefix=value)
         if self.instance and self.instance.pk:
