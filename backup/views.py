@@ -46,14 +46,17 @@ def dashboard(request):
             },
         )
 
-    # 0 or 2+ configs: show instance list
+    # 0 or 2+ configs: show instance list with backup stats
     config_data = []
     for config in configs:
+        backups = config.backups.filter(status="success")
         config_data.append(
             {
                 "config": config,
                 "credential_status": CredentialService.get_status(config),
                 "credentials_configured": CredentialService.is_configured(config),
+                "backup_count": backups.count(),
+                "total_size": sum(b.file_size for b in backups),
             }
         )
     return render(

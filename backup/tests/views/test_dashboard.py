@@ -128,6 +128,38 @@ class TestDashboardView:
         assert "config_data" in response.context
         assert len(response.context["config_data"]) == 0
 
+    def test_instance_list_includes_backup_stats(self, client, pihole_config, temp_backup_dir, auth_disabled_settings):
+        """Instance list cards should include backup_count and total_size."""
+        PiholeConfigFactory(name="Secondary", env_prefix="SECONDARY")
+
+        # Create backups for the first config
+        for i in range(2):
+            filepath = temp_backup_dir / f"backup_{i}.zip"
+            filepath.write_bytes(b"test")
+            BackupRecordFactory(
+                config=pihole_config,
+                filename=f"backup_{i}.zip",
+                file_path=str(filepath),
+                file_size=1024,
+            )
+
+        url = reverse("dashboard")
+        response = client.get(url)
+
+        assert response.status_code == 200
+        config_data = response.context["config_data"]
+        assert len(config_data) == 2
+
+        # First config should have backup stats
+        primary_data = next(d for d in config_data if d["config"] == pihole_config)
+        assert primary_data["backup_count"] == 2
+        assert primary_data["total_size"] == 2048
+
+        # Second config should have zero stats
+        secondary_data = next(d for d in config_data if d["config"] != pihole_config)
+        assert secondary_data["backup_count"] == 0
+        assert secondary_data["total_size"] == 0
+
 
 @pytest.mark.django_db
 class TestInstanceDashboardView:
