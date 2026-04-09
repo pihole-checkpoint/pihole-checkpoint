@@ -142,9 +142,13 @@ def delete_instance(request, config_id):
     config = get_object_or_404(PiholeConfig, id=config_id)
 
     # Delete backup files from disk
+    backup_dir = Path(settings.BACKUP_DIR).resolve()
     for record in config.backups.all():
         if record.file_path:
-            filepath = Path(record.file_path)
+            filepath = Path(record.file_path).resolve()
+            if not str(filepath).startswith(str(backup_dir)):
+                logger.warning(f"Skipping file outside backup dir: {filepath}")
+                continue
             if filepath.exists():
                 try:
                     filepath.unlink()
@@ -155,9 +159,17 @@ def delete_instance(request, config_id):
     config.delete()  # Cascade deletes BackupRecord rows
 
     # Refresh scheduler to remove the deleted instance's backup job
-    from .management.commands.runapscheduler import refresh_backup_schedules
+    try:
+        from .management.commands.runapscheduler import refresh_backup_schedules
 
-    refresh_backup_schedules()
+        refresh_backup_schedules()
+    except Exception:
+        logger.exception("Instance '%s' deleted, but failed to refresh backup schedules", name)
+        messages.warning(
+            request,
+            f"Instance '{name}' was deleted, but backup schedules could not be refreshed automatically.",
+        )
+        return redirect("dashboard")
 
     messages.success(request, f"Instance '{name}' deleted.")
     return redirect("dashboard")

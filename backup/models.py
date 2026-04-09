@@ -65,18 +65,36 @@ class PiholeConfig(models.Model):
         """Read Pi-hole credentials from environment variables using configured prefix.
 
         Env var pattern: PIHOLE_{PREFIX}_URL, PIHOLE_{PREFIX}_PASSWORD, PIHOLE_{PREFIX}_VERIFY_SSL
-        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL (when env_prefix is empty)
+        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL
         """
+        legacy_url = getattr(settings, "PIHOLE_URL", "") or ""
+        legacy_password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
+        legacy_verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
+
         if self.env_prefix:
             prefix = self.env_prefix.upper()
             url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
             password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
             verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
+
+            if not (url and password) and (legacy_url or legacy_password):
+                logger.warning(
+                    "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
+                    "prefixed env vars for '%s' are not configured. "
+                    "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
+                    self.name,
+                    prefix,
+                    prefix,
+                    prefix,
+                )
+                url = legacy_url
+                password = legacy_password
+                verify_ssl = legacy_verify_ssl
         else:
             # Legacy single-instance fallback
-            url = getattr(settings, "PIHOLE_URL", "") or ""
-            password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
-            verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
+            url = legacy_url
+            password = legacy_password
+            verify_ssl = legacy_verify_ssl
         return {
             "url": url,
             "password": password,

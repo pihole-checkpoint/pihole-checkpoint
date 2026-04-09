@@ -4,10 +4,10 @@ from django.db import migrations, models
 
 
 def set_primary_prefix(apps, schema_editor):
-    """Set env_prefix='PRIMARY' on the first existing PiholeConfig."""
+    """Set env_prefix='PRIMARY' on the first existing PiholeConfig if blank."""
     PiholeConfig = apps.get_model("backup", "PiholeConfig")
     first_config = PiholeConfig.objects.order_by("pk").first()
-    if first_config:
+    if first_config and not first_config.env_prefix:
         first_config.env_prefix = "PRIMARY"
         first_config.save(update_fields=["env_prefix"])
 

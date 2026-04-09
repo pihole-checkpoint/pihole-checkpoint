@@ -92,18 +92,34 @@ class PiholeConfig(models.Model):
         """Read Pi-hole credentials from environment variables using configured prefix.
 
         Env var pattern: PIHOLE_{PREFIX}_URL, PIHOLE_{PREFIX}_PASSWORD, PIHOLE_{PREFIX}_VERIFY_SSL
-        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL (deprecated)
+        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL
         """
+        legacy_url = getattr(settings, "PIHOLE_URL", "") or ""
+        legacy_password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
+        legacy_verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
+
         if self.env_prefix:
             prefix = self.env_prefix.upper()
             url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
             password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
             verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
+
+            # Fall back to legacy env vars if prefixed vars are missing
+            if not (url and password) and (legacy_url or legacy_password):
+                logger.warning(
+                    "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
+                    "prefixed env vars for '%s' are not configured. "
+                    "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
+                    self.name, prefix, prefix, prefix,
+                )
+                url = legacy_url
+                password = legacy_password
+                verify_ssl = legacy_verify_ssl
         else:
-            # Legacy single-instance fallback (deprecated)
-            url = getattr(settings, "PIHOLE_URL", "") or ""
-            password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
-            verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
+            # Legacy single-instance fallback
+            url = legacy_url
+            password = legacy_password
+            verify_ssl = legacy_verify_ssl
         return {
             "url": url,
             "password": password,
@@ -118,7 +134,7 @@ class PiholeConfig(models.Model):
 
 **Migration:** `0003_add_multi_instance_fields.py`
 - Add `env_prefix` field
-- Data migration: if existing `PiholeConfig` rows have no `env_prefix`, set it to `"PRIMARY"` for the first active config (so existing `PIHOLE_URL` env var users can rename to `PIHOLE_PRIMARY_URL`)
+- Data migration: if existing `PiholeConfig` rows have no `env_prefix`, set it to `"PRIMARY"` for the first active config (so existing `PIHOLE_URL` env var users can rename to `PIHOLE_PRIMARY_URL`). Legacy env vars continue working as a fallback with a deprecation warning until users migrate to prefixed vars.
 
 ### Phase 2: Credential Service Refactor
 
@@ -344,7 +360,9 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
    - `PIHOLE_URL` → `PIHOLE_PRIMARY_URL`
    - `PIHOLE_PASSWORD` → `PIHOLE_PRIMARY_PASSWORD`
    - `PIHOLE_VERIFY_SSL` → `PIHOLE_PRIMARY_VERIFY_SSL`
-4. **Legacy env vars continue working** as fallback (with deprecation log warning) if user doesn't rename immediately
+4. **Legacy env vars continue working** as fallback if user doesn't rename immediately:
+   - Credential resolution tries `PIHOLE_PRIMARY_URL` / `PIHOLE_PRIMARY_PASSWORD` first
+   - If prefixed vars are missing, falls back to legacy `PIHOLE_URL` / `PIHOLE_PASSWORD` with a deprecation log warning
 5. To add a second Pi-hole, user adds env vars with a new prefix (e.g., `PIHOLE_SECONDARY_URL`) and creates a new instance via the UI with `env_prefix = "SECONDARY"`
 6. Container restart required after adding new env vars (standard Docker behavior)
 
