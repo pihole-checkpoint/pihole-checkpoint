@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='piholeconfig',
             name='connection_status',
-            field=models.CharField(choices=[('unknown', 'Unknown'), ('ok', 'Connected'), ('auth_error', 'Authentication Error'), ('unreachable', 'Unreachable'), ('not_configured', 'Not Configured')], default='unknown', max_length=20),
+            field=models.CharField(choices=[('unknown', 'Unknown'), ('ok', 'Connected'), ('auth_error', 'Authentication Error'), ('unreachable', 'Unreachable'), ('not_configured', 'Not Configured'), ('removed', 'Removed')], default='unknown', max_length=20),
         ),
     ]
