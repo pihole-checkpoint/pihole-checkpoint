@@ -153,6 +153,12 @@ def delete_instance(request, config_id):
 
     name = config.name
     config.delete()  # Cascade deletes BackupRecord rows
+
+    # Refresh scheduler to remove the deleted instance's backup job
+    from .management.commands.runapscheduler import refresh_backup_schedules
+
+    refresh_backup_schedules()
+
     messages.success(request, f"Instance '{name}' deleted.")
     return redirect("dashboard")
 

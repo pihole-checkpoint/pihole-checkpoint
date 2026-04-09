@@ -1,6 +1,6 @@
 # ADR-0014: Multi-Instance Pi-hole Support
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-04-07
 
 ---
@@ -87,14 +87,6 @@ class PiholeConfig(models.Model):
         max_length=50, blank=True, default="",
         help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)"
     )
-    pihole_url = models.URLField(
-        blank=True, default="",
-        help_text="Pi-hole URL (read from env if prefix is set)"
-    )
-    verify_ssl = models.BooleanField(
-        default=False,
-        help_text="Enable SSL certificate verification"
-    )
 
     def get_pihole_credentials(self):
         """Read Pi-hole credentials from environment variables using configured prefix.
@@ -125,7 +117,7 @@ class PiholeConfig(models.Model):
 ```
 
 **Migration:** `0003_add_multi_instance_fields.py`
-- Add `env_prefix`, `pihole_url`, `verify_ssl` fields
+- Add `env_prefix` field
 - Data migration: if existing `PiholeConfig` rows have no `env_prefix`, set it to `"PRIMARY"` for the first active config (so existing `PIHOLE_URL` env var users can rename to `PIHOLE_PRIMARY_URL`)
 
 ### Phase 2: Credential Service Refactor
@@ -295,7 +287,7 @@ def instance_settings(request, config_id):
 
 **File:** `backup/forms.py`
 
-Add `env_prefix`, `pihole_url`, `verify_ssl` to `PiholeConfigForm.Meta.fields`. The `pihole_url` field serves as a display/reference field — the actual URL used at runtime comes from the environment variable.
+Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefix format and uniqueness.
 
 ### Phase 8: Testing
 
@@ -325,14 +317,14 @@ Add `env_prefix`, `pihole_url`, `verify_ssl` to `PiholeConfigForm.Meta.fields`. 
 
 | File | Changes |
 |------|---------|
-| `backup/models.py` | Add `env_prefix`, `pihole_url`, `verify_ssl` fields + `get_pihole_credentials()` method |
+| `backup/models.py` | Add `env_prefix` field + `get_pihole_credentials()` method |
 | `backup/migrations/0003_*.py` | **New** — add fields, data migration for existing configs |
 | `backup/services/credential_service.py` | Refactor to accept `config` parameter, delegate to model method |
 | `backup/services/backup_service.py` | Pass `self.config` to `CredentialService.get_credentials()` |
 | `backup/services/restore_service.py` | Pass `self.config` to `CredentialService.get_credentials()` |
 | `backup/views.py` | Add instance CRUD views, refactor existing views for config_id |
 | `backup/urls.py` | Add instance-prefixed URL patterns |
-| `backup/forms.py` | Add credential-related fields to form |
+| `backup/forms.py` | Add `env_prefix` field to form with validation |
 | `backup/templates/backup/instance_list.html` | **New** — instance card grid overview |
 | `backup/templates/backup/instance_dashboard.html` | **New** — per-instance dashboard (extracted from dashboard.html) |
 | `backup/templates/backup/settings.html` | Add env_prefix field, per-instance scoping |
