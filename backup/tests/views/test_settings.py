@@ -91,6 +91,7 @@ class TestInstanceSettingsViewPost:
         url = reverse("instance_settings", kwargs={"pk": pihole_config.pk})
         data = {
             "name": "Updated Pi-hole",
+            "env_prefix": "PRIMARY",
             "backup_frequency": "weekly",
             "backup_time": "04:00",
             "backup_day": 1,
@@ -136,6 +137,7 @@ class TestInstanceSettingsViewPost:
         url = reverse("instance_settings", kwargs={"pk": pihole_config.pk})
         data = {
             "name": "Test Pi-hole",
+            "env_prefix": "PRIMARY",
             "backup_frequency": "daily",
             "backup_time": "03:00",
             "backup_day": 0,
@@ -155,6 +157,7 @@ class TestInstanceSettingsViewPost:
         url = reverse("instance_settings", kwargs={"pk": pihole_config.pk})
         data = {
             "name": pihole_config.name,
+            "env_prefix": pihole_config.env_prefix,
             "backup_frequency": pihole_config.backup_frequency,
             "backup_time": pihole_config.backup_time.strftime("%H:%M"),
             "backup_day": pihole_config.backup_day,

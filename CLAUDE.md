@@ -73,7 +73,7 @@ Business logic is separated from views:
 - `retention_service.py`: Enforces `max_backups` count and `max_age_days` policies.
 
 ### Models (`backup/models.py`)
-- `PiholeConfig`: Stores Pi-hole URL, encrypted password, backup schedule settings. Designed for multi-instance but UI currently supports single instance.
+- `PiholeConfig`: Stores backup schedule settings and `env_prefix` for credential lookup. Supports multiple Pi-hole instances. Credentials are read from environment variables (`PIHOLE_{PREFIX}_URL`, `PIHOLE_{PREFIX}_PASSWORD`).
 - `BackupRecord`: Tracks backup files with checksum, status, and relationship to config.
 
 ### Scheduler (`backup/management/commands/runapscheduler.py`)
@@ -84,11 +84,13 @@ Business logic is separated from views:
 
 ## Environment Variables
 
-Required in `.env` (see `.env.example`):
-- `SECRET_KEY`: Django secret key
-- `FIELD_ENCRYPTION_KEY`: 32-character key for encrypting Pi-hole passwords at rest
+Pi-hole credentials use the env prefix pattern (see `.env.example`):
+- `PIHOLE_{PREFIX}_URL`: Pi-hole URL (e.g., `PIHOLE_PRIMARY_URL`)
+- `PIHOLE_{PREFIX}_PASSWORD`: Pi-hole admin password (e.g., `PIHOLE_PRIMARY_PASSWORD`)
+- `PIHOLE_{PREFIX}_VERIFY_SSL`: SSL verification (default: false)
 
 Optional:
+- `SECRET_KEY`: Django secret key (auto-generated if not set)
 - `TIME_ZONE`: Scheduler timezone (default: UTC)
 - `REQUIRE_AUTH`/`APP_PASSWORD`: Enable simple password auth for web UI
 - `DEBUG`, `ALLOWED_HOSTS`
