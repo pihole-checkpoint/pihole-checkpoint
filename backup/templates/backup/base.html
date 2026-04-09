@@ -97,7 +97,7 @@
     </main>
 
     <footer class="container py-3 text-center text-muted">
-        <small class="text-muted">Pi-hole Checkpoint v{{ app_version }}{% if git_commit %} ({{ git_commit }}){% endif %}{% if build_date %} &middot; built {{ build_date }}{% endif %}</small>
+        <small class="text-muted"><a href="https://github.com/pihole-checkpoint/pihole-checkpoint" class="text-muted text-decoration-none">Pi-hole Checkpoint</a> v{{ app_version }}{% if git_commit %} ({{ git_commit }}){% endif %}{% if build_date %} &middot; built {{ build_date }}{% endif %}</small>
     </footer>
 
     <script src="{% static 'backup/js/bootstrap.bundle.min.js' %}"></script>
