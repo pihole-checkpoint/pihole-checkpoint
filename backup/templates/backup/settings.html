@@ -1,9 +1,8 @@
 {% extends "backup/base.html" %}
 
-{% block title %}{% if is_new %}Add Instance{% else %}{{ config.name }} Settings{% endif %} - Pi-hole Checkpoint{% endblock %}
+{% block title %}{{ config.name }} Settings - Pi-hole Checkpoint{% endblock %}
 
 {% block breadcrumb %}
-{% if not is_new and config %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Instances</a></li>
@@ -11,35 +10,52 @@
         <li class="breadcrumb-item active">Settings</li>
     </ol>
 </nav>
-{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="bi bi-gear"></i> {% if is_new %}Add Instance{% else %}Settings{% endif %}</h1>
+    <h1><i class="bi bi-gear"></i> Settings</h1>
 </div>
 
 <div class="row">
     <div class="col-lg-8">
-        {% if not is_new and credential_status %}
         <!-- Pi-hole Connection Status -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-wifi"></i> Pi-hole Connection</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">
-                    Connection settings are configured via environment variables.
-                </p>
                 <table class="table table-sm mb-3">
                     <tbody>
                         <tr>
-                            <th style="width: 150px;">URL</th>
+                            <th style="width: 150px;">Status</th>
+                            <td>
+                                {% if config.connection_status == "ok" %}
+                                <span class="text-success"><i class="bi bi-check-circle"></i> Connected</span>
+                                {% elif config.connection_status == "auth_error" %}
+                                <span class="text-danger"><i class="bi bi-x-circle"></i> Authentication Error</span>
+                                {% elif config.connection_status == "unreachable" %}
+                                <span class="text-danger"><i class="bi bi-x-circle"></i> Unreachable</span>
+                                {% elif config.connection_status == "not_configured" %}
+                                <span class="text-warning"><i class="bi bi-exclamation-circle"></i> Not Configured</span>
+                                {% else %}
+                                <span class="text-muted"><i class="bi bi-question-circle"></i> Unknown</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if config.connection_error %}
+                        <tr>
+                            <th>Error</th>
+                            <td><code class="text-danger small">{{ config.connection_error|truncatechars:200 }}</code></td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>URL</th>
                             <td>
                                 {% if credential_status.url %}
                                 <code>{{ credential_status.url }}</code>
                                 {% else %}
-                                <span class="text-danger"><i class="bi bi-x-circle"></i> Not configured</span>
+                                <span class="text-danger"><i class="bi bi-x-circle"></i> Not set</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -68,145 +84,83 @@
                 <button type="button" class="btn btn-outline-secondary" onclick="testConnection(this)" {% if not credential_status.url or not credential_status.has_password %}disabled{% endif %}>
                     <i class="bi bi-wifi"></i> Test Connection
                 </button>
-                {% if not credential_status.url or not credential_status.has_password %}
-                <div class="form-text text-danger mt-2">
-                    Set <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> and <code>PIHOLE_{{ config.env_prefix|upper }}_PASSWORD</code> environment variables to enable connection.
-                </div>
-                {% endif %}
             </div>
         </div>
-        {% endif %}
 
-        <!-- Backup Schedule Form -->
-        <div class="card">
+        <!-- Instance Configuration (read-only) -->
+        <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> {% if is_new %}Instance Configuration{% else %}Backup Schedule{% endif %}</h5>
+                <h5 class="mb-0"><i class="bi bi-sliders"></i> Instance Configuration</h5>
             </div>
             <div class="card-body">
-                <form method="post" id="configForm" action="{% if is_new %}{% url 'add_instance' %}{% else %}{% url 'instance_settings' config.id %}{% endif %}">
-                    {% csrf_token %}
-
-                    <div class="mb-3">
-                        <label for="id_name" class="form-label">Name</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
-                        <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-text">A friendly name for this Pi-hole instance</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="id_env_prefix" class="form-label">Environment Variable Prefix</label>
-                        {{ form.env_prefix }}
-                        {% if form.env_prefix.errors %}
-                        <div class="invalid-feedback d-block">{{ form.env_prefix.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-text">
-                            Determines which env vars to read. E.g., prefix <code>PRIMARY</code> reads
-                            <code>PIHOLE_PRIMARY_URL</code>, <code>PIHOLE_PRIMARY_PASSWORD</code>, <code>PIHOLE_PRIMARY_VERIFY_SSL</code>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <h6 class="mb-3">Schedule</h6>
-
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label for="id_backup_frequency" class="form-label">Frequency</label>
-                            {{ form.backup_frequency }}
-                        </div>
-                        <div class="col-md-4">
-                            <label for="id_backup_time" class="form-label">Time</label>
-                            {{ form.backup_time }}
-                            <div class="form-text">For daily/weekly</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="id_backup_day" class="form-label">Day</label>
-                            {{ form.backup_day }}
-                            <div class="form-text">For weekly</div>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <h6 class="mb-3">Retention Policy</h6>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="id_max_backups" class="form-label">Maximum Backups</label>
-                            {{ form.max_backups }}
-                            <div class="form-text">Keep this many backups (0 = unlimited)</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="id_max_age_days" class="form-label">Maximum Age (days)</label>
-                            {{ form.max_age_days }}
-                            <div class="form-text">Delete backups older than this (0 = no limit)</div>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            {{ form.is_active }}
-                            <label class="form-check-label" for="id_is_active">Enable Scheduled Backups</label>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg"></i> {% if is_new %}Create Instance{% else %}Save Settings{% endif %}
-                        </button>
-                    </div>
-                </form>
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <th style="width: 180px;">Name</th>
+                            <td>{{ config.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Env Prefix</th>
+                            <td><code>{{ config.env_prefix }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Backup Frequency</th>
+                            <td>{{ config.get_backup_frequency_display }}
+                                {% if config.backup_frequency == 'daily' or config.backup_frequency == 'weekly' %}
+                                at {{ config.backup_time|time:"H:i" }}
+                                {% endif %}
+                                {% if config.backup_frequency == 'weekly' %}
+                                on {{ config.get_backup_day_display }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Max Backups</th>
+                            <td>{{ config.max_backups }}{% if config.max_backups == 0 %} (unlimited){% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th>Max Age</th>
+                            <td>{{ config.max_age_days }} days{% if config.max_age_days == 0 %} (no limit){% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th>Scheduled Backups</th>
+                            <td>
+                                {% if config.is_active %}
+                                <span class="text-success"><i class="bi bi-check-circle"></i> Enabled</span>
+                                {% else %}
+                                <span class="text-muted"><i class="bi bi-pause-circle"></i> Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-
-        {% if not is_new and config %}
-        <!-- Danger Zone -->
-        <div class="card mt-4 border-danger">
-            <div class="card-header bg-danger text-white">
-                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Danger Zone</h5>
-            </div>
-            <div class="card-body">
-                <p>Permanently delete this instance and all its backup records and files.</p>
-                <form method="post" action="{% url 'delete_instance' config.id %}" onsubmit="return confirm('Delete instance &quot;{{ config.name|escapejs }}&quot; and all its backups? This cannot be undone.');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash"></i> Delete Instance
-                    </button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <div class="col-lg-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Help</h5>
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Adding Instances</h5>
             </div>
             <div class="card-body">
-                <h6>Environment Variables</h6>
-                <p class="small">Pi-hole connection settings are configured via environment variables in your <code>.env</code> file or Docker Compose.</p>
-                <p class="small">Each instance uses a prefix to determine which env vars to read:</p>
-                <ul class="small">
-                    <li><code>PIHOLE_{PREFIX}_URL</code> - Pi-hole URL</li>
-                    <li><code>PIHOLE_{PREFIX}_PASSWORD</code> - Admin password</li>
-                    <li><code>PIHOLE_{PREFIX}_VERIFY_SSL</code> - SSL verification (default: false)</li>
-                </ul>
-                <p class="small text-muted">Example: prefix <code>PRIMARY</code> reads <code>PIHOLE_PRIMARY_URL</code></p>
+                <p class="small">Instances are auto-discovered from environment variables on container startup. To add a new instance, set the following env vars and restart:</p>
+                <pre class="small bg-light p-2 rounded"><code>PIHOLE_{PREFIX}_URL=https://...
+PIHOLE_{PREFIX}_PASSWORD=...
+PIHOLE_{PREFIX}_VERIFY_SSL=false</code></pre>
+                <p class="small text-muted">Replace <code>{PREFIX}</code> with any name (e.g., <code>GYM</code>, <code>OFFICE</code>).</p>
 
-                <h6>Backup Frequency</h6>
-                <ul class="small">
-                    <li><strong>Hourly:</strong> Every hour</li>
-                    <li><strong>Daily:</strong> Once per day at specified time</li>
-                    <li><strong>Weekly:</strong> Once per week on specified day/time</li>
-                </ul>
+                <h6>Optional Settings</h6>
+                <p class="small">Override defaults via env vars:</p>
+                <pre class="small bg-light p-2 rounded"><code>PIHOLE_{PREFIX}_NAME=My Pi-hole
+PIHOLE_{PREFIX}_SCHEDULE=daily
+PIHOLE_{PREFIX}_TIME=03:00
+PIHOLE_{PREFIX}_DAY=0
+PIHOLE_{PREFIX}_MAX_BACKUPS=10
+PIHOLE_{PREFIX}_MAX_AGE_DAYS=30</code></pre>
 
-                <h6>Retention Policy</h6>
-                <p class="small">Old backups are automatically deleted based on count and age limits. Set to 0 to disable a limit.</p>
+                <h6>Removing Instances</h6>
+                <p class="small text-muted">Remove the <code>PIHOLE_{PREFIX}_URL</code> env var and restart. The instance and its backups will be cleaned up automatically.</p>
             </div>
         </div>
     </div>
@@ -214,12 +168,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if not is_new and config %}
 <script>
-/**
- * Test connection to Pi-hole using environment credentials.
- * @param {HTMLButtonElement} btn - The button element that triggered this action
- */
 async function testConnection(btn) {
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
@@ -249,5 +198,4 @@ async function testConnection(btn) {
     }
 }
 </script>
-{% endif %}
 {% endblock %}

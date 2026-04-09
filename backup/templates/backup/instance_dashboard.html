@@ -33,7 +33,7 @@
 {% elif not config %}
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    Pi-hole credentials configured. <a href="{% url 'add_instance' %}">Configure an instance</a> to start automatic backups.
+    No instance configured. Set <code>PIHOLE_{PREFIX}_URL</code> and <code>PIHOLE_{PREFIX}_PASSWORD</code> environment variables and restart.
 </div>
 {% else %}
 

@@ -6,7 +6,6 @@ urlpatterns = [
     # Overview / instance list (smart routing in view)
     path("", views.dashboard, name="dashboard"),
     # Instance management
-    path("instances/add/", views.add_instance, name="add_instance"),
     path("instances/<int:config_id>/", views.instance_dashboard, name="instance_dashboard"),
     path("instances/<int:config_id>/settings/", views.instance_settings, name="instance_settings"),
     path("instances/<int:config_id>/delete/", views.delete_instance, name="delete_instance"),

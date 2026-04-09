@@ -8,7 +8,7 @@ from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import LoginForm, PiholeConfigForm
+from .forms import LoginForm
 from .models import BackupRecord, PiholeConfig
 from .services.backup_service import BackupService
 from .services.credential_service import CredentialService
@@ -90,51 +90,16 @@ def instance_dashboard(request, config_id):
 
 
 def instance_settings(request, config_id):
-    """Per-instance settings view."""
+    """Per-instance settings view (read-only)."""
     config = get_object_or_404(PiholeConfig, id=config_id)
-
-    if request.method == "POST":
-        form = PiholeConfigForm(request.POST, instance=config)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Settings saved successfully!")
-            return redirect("instance_settings", config_id=config.id)
-    else:
-        form = PiholeConfigForm(instance=config)
-
     credential_status = CredentialService.get_status(config)
 
     return render(
         request,
         "backup/settings.html",
         {
-            "form": form,
             "config": config,
             "credential_status": credential_status,
-            "is_new": False,
-        },
-    )
-
-
-def add_instance(request):
-    """Add a new Pi-hole instance."""
-    if request.method == "POST":
-        form = PiholeConfigForm(request.POST)
-        if form.is_valid():
-            config = form.save()
-            messages.success(request, f"Instance '{config.name}' created successfully!")
-            return redirect("instance_settings", config_id=config.id)
-    else:
-        form = PiholeConfigForm()
-
-    return render(
-        request,
-        "backup/settings.html",
-        {
-            "form": form,
-            "config": None,
-            "credential_status": None,
-            "is_new": True,
         },
     )
 
@@ -168,11 +133,11 @@ def delete_instance(request, config_id):
 
 
 def settings_redirect(request):
-    """Legacy /settings/ redirect to instance settings or add instance."""
+    """Legacy /settings/ redirect to instance settings."""
     config = PiholeConfig.objects.first()
     if config:
         return redirect("instance_settings", config_id=config.id)
-    return redirect("add_instance")
+    return redirect("dashboard")
 
 
 @require_POST
