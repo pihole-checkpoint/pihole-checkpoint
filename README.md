@@ -40,7 +40,7 @@ A web application for backing up Pi-hole v6 instances via the Teleporter API. Ru
    docker compose up -d
    ```
 
-3. Open http://localhost:8000 to view the dashboard and configure backup schedules.
+3. Open http://localhost:8000 to view the dashboard and manage backups.
 
 ## Multi-Instance Support
 

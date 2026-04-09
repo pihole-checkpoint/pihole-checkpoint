@@ -160,7 +160,7 @@ PIHOLE_{PREFIX}_MAX_BACKUPS=10
 PIHOLE_{PREFIX}_MAX_AGE_DAYS=30</code></pre>
 
                 <h6>Removing Instances</h6>
-                <p class="small text-muted">Remove the <code>PIHOLE_{PREFIX}_URL</code> env var and restart. The instance and its backups will be cleaned up automatically.</p>
+                <p class="small text-muted">Remove the <code>PIHOLE_{PREFIX}_URL</code> env var and restart. By default, the instance will be marked as <code>not_configured</code>. To automatically remove stale instances and their backups on restart, set <code>PRUNE_STALE_INSTANCES=true</code>.</p>
             </div>
         </div>
     </div>

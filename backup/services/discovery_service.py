@@ -105,8 +105,10 @@ def _delete_backup_files(config):
 def discover_instances_from_env(force=False):
     """Scan environment for PIHOLE_*_URL vars, create/update/remove PiholeConfig rows.
 
-    Instances whose PIHOLE_{PREFIX}_URL env var is no longer present are removed
-    along with their backup records and files.
+    Instances whose PIHOLE_{PREFIX}_URL env var is no longer present are treated
+    as stale. If PRUNE_STALE_INSTANCES is enabled, they are removed along with
+    their backup records and files. Otherwise, they are retained and marked
+    ``not_configured``.
 
     Args:
         force: If True, re-apply env var values to existing instances
@@ -219,7 +221,7 @@ def check_connections():
             config.connection_status = "ok"
             config.connection_error = ""
             logger.info("Connection OK for %s (%s)", config.name, creds["url"])
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, OSError) as exc:
+        except (ConnectionError, OSError) as exc:
             config.connection_status = "unreachable"
             config.connection_error = str(exc)
             logger.warning("Unreachable: %s — %s", config.name, exc)

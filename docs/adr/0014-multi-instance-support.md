@@ -68,6 +68,8 @@ The `nodered-backup` project in this repo family solves the same problem using a
 
 **Recommendation: Option 1** — Provides both an at-a-glance overview and detailed per-instance views.
 
+> **Note:** Instances are auto-discovered from `PIHOLE_{PREFIX}_URL` environment variables on container startup. There is no manual "add instance" UI — all instance lifecycle is driven by env vars.
+
 ---
 
 ## Implementation Plan
@@ -333,7 +335,7 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 3. Migration `0003` runs automatically:
    - Existing `PiholeConfig` gets `env_prefix = "PRIMARY"`
    - All existing backup records stay linked (FK unchanged)
-4. To add a second Pi-hole, user adds env vars with a new prefix (e.g., `PIHOLE_SECONDARY_URL`) and creates a new instance via the UI with `env_prefix = "SECONDARY"`
+4. To add a second Pi-hole, user adds env vars with a new prefix (e.g., `PIHOLE_SECONDARY_URL`, `PIHOLE_SECONDARY_PASSWORD`) and restarts the container — the instance is auto-discovered on startup
 5. Container restart required after adding new env vars (standard Docker behavior)
 
 ---
