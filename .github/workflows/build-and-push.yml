@@ -37,6 +37,8 @@ jobs:
         with:
           image-name: ${{ env.IMAGE_NAME }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-

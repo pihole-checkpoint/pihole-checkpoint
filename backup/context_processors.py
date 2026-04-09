@@ -2,10 +2,8 @@
 
 import functools
 import importlib.metadata
-import logging
+import os
 import subprocess
-
-logger = logging.getLogger(__name__)
 
 
 @functools.lru_cache(maxsize=1)
@@ -16,18 +14,25 @@ def _get_app_info():
     except importlib.metadata.PackageNotFoundError:
         version = "dev"
 
-    try:
-        commit = (
-            subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                stderr=subprocess.DEVNULL,
-                timeout=5,
+    # Prefer GIT_COMMIT env var (set at Docker build time), fall back to git CLI
+    commit = os.environ.get("GIT_COMMIT", "")
+    if not commit:
+        try:
+            commit = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"],
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                )
+                .decode()
+                .strip()
             )
-            .decode()
-            .strip()
-        )
-    except Exception:
-        commit = ""
+        except Exception:
+            commit = ""
+
+    # Use short hash for display
+    if len(commit) > 7:
+        commit = commit[:7]
 
     return {"version": version, "commit": commit}
 
