@@ -45,18 +45,11 @@ def authenticated_client(client):
 
 
 @pytest.fixture(autouse=True)
-def pihole_credentials(settings, monkeypatch):
-    """Configure Pi-hole credentials from environment for tests.
-
-    Sets both legacy settings and prefix-based env vars for PRIMARY.
-    """
-    settings.PIHOLE_URL = "https://pihole.local"
-    settings.PIHOLE_PASSWORD = "testpassword123"
-    settings.PIHOLE_VERIFY_SSL = False
+def pihole_credentials(monkeypatch):
+    """Configure Pi-hole credentials via prefixed environment variables for tests."""
     monkeypatch.setenv("PIHOLE_PRIMARY_URL", "https://pihole.local")
     monkeypatch.setenv("PIHOLE_PRIMARY_PASSWORD", "testpassword123")
     monkeypatch.setenv("PIHOLE_PRIMARY_VERIFY_SSL", "false")
-    return settings
 
 
 @pytest.fixture
@@ -79,6 +72,7 @@ def inactive_config(db):
     """Create an inactive PiholeConfig instance."""
     return PiholeConfig.objects.create(
         name="Inactive Pi-hole",
+        env_prefix="INACTIVE",
         backup_frequency="daily",
         backup_time=time(3, 0),
         is_active=False,

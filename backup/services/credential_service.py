@@ -23,16 +23,13 @@ class CredentialService:
             ValueError if required credentials are missing
         """
         creds = config.get_pihole_credentials()
+        prefix = config.env_prefix.upper()
 
         if not creds["url"]:
-            if config.env_prefix:
-                raise ValueError(f"PIHOLE_{config.env_prefix.upper()}_URL environment variable is required")
-            raise ValueError("PIHOLE_URL environment variable is required")
+            raise ValueError(f"PIHOLE_{prefix}_URL environment variable is required")
 
         if not creds["password"]:
-            if config.env_prefix:
-                raise ValueError(f"PIHOLE_{config.env_prefix.upper()}_PASSWORD environment variable is required")
-            raise ValueError("PIHOLE_PASSWORD environment variable is required")
+            raise ValueError(f"PIHOLE_{prefix}_PASSWORD environment variable is required")
 
         return creds
 

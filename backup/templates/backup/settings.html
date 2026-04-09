@@ -70,11 +70,7 @@
                 </button>
                 {% if not credential_status.url or not credential_status.has_password %}
                 <div class="form-text text-danger mt-2">
-                    {% if config.env_prefix %}
                     Set <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> and <code>PIHOLE_{{ config.env_prefix|upper }}_PASSWORD</code> environment variables to enable connection.
-                    {% else %}
-                    Set <code>PIHOLE_URL</code> and <code>PIHOLE_PASSWORD</code> environment variables to enable connection.
-                    {% endif %}
                 </div>
                 {% endif %}
             </div>

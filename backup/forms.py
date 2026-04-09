@@ -37,17 +37,15 @@ class PiholeConfigForm(forms.ModelForm):
 
     def clean_env_prefix(self):
         value = self.cleaned_data.get("env_prefix", "").strip().upper()
-        if value and not re.match(r"^[A-Z0-9_]+$", value):
+        if not value:
+            raise forms.ValidationError("An environment variable prefix is required.")
+        if not re.match(r"^[A-Z0-9_]+$", value):
             raise forms.ValidationError("Only letters, numbers, and underscores are allowed.")
-        # Require non-empty prefix for new instances to avoid multiple configs
-        # sharing the same legacy PIHOLE_URL/PIHOLE_PASSWORD env vars
-        if not value and not (self.instance and self.instance.pk):
-            raise forms.ValidationError("An environment variable prefix is required for new instances.")
         # Check uniqueness among other configs
         qs = PiholeConfig.objects.filter(env_prefix=value)
         if self.instance and self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
-        if value and qs.exists():
+        if qs.exists():
             raise forms.ValidationError(f"Another instance is already using the prefix '{value}'.")
         return value
 

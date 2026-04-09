@@ -30,8 +30,8 @@ A web application for backing up Pi-hole v6 instances via the Teleporter API. Ru
          - ./data:/app/data
          - ./backups:/app/backups
        environment:
-         - PIHOLE_URL=http://192.168.1.100
-         - PIHOLE_PASSWORD=your-pihole-admin-password
+         - PIHOLE_PRIMARY_URL=http://192.168.1.100
+         - PIHOLE_PRIMARY_PASSWORD=your-pihole-admin-password
        restart: unless-stopped
    ```
 
@@ -44,11 +44,13 @@ A web application for backing up Pi-hole v6 instances via the Teleporter API. Ru
 
 ## Environment Variables
 
+Each Pi-hole instance uses a prefix for its environment variables. Set the prefix in the web UI when creating an instance.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PIHOLE_URL` | Yes | Pi-hole admin URL (e.g., `http://192.168.1.100`) |
-| `PIHOLE_PASSWORD` | Yes | Pi-hole admin password |
-| `PIHOLE_VERIFY_SSL` | No | Verify SSL certificates (default: false) |
+| `PIHOLE_{PREFIX}_URL` | Yes | Pi-hole admin URL (e.g., `PIHOLE_PRIMARY_URL=http://192.168.1.100`) |
+| `PIHOLE_{PREFIX}_PASSWORD` | Yes | Pi-hole admin password (e.g., `PIHOLE_PRIMARY_PASSWORD=...`) |
+| `PIHOLE_{PREFIX}_VERIFY_SSL` | No | Verify SSL certificates (default: false) |
 | `TIME_ZONE` | No | Scheduler timezone (default: UTC) |
 | `REQUIRE_AUTH` | No | Enable web UI password protection (default: false) |
 | `APP_PASSWORD` | No | Password for web UI when `REQUIRE_AUTH=true` |

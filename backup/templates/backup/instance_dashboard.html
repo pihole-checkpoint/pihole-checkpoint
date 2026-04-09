@@ -28,11 +28,7 @@
 {% if not credentials_configured %}
 <div class="alert alert-warning">
     <i class="bi bi-exclamation-triangle"></i>
-    {% if config.env_prefix %}
     No Pi-hole credentials found. Set <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> and <code>PIHOLE_{{ config.env_prefix|upper }}_PASSWORD</code> environment variables.
-    {% else %}
-    No Pi-hole configured yet. Set <code>PIHOLE_URL</code> and <code>PIHOLE_PASSWORD</code> environment variables to get started.
-    {% endif %}
 </div>
 {% elif not config %}
 <div class="alert alert-info">

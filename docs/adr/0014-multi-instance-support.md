@@ -84,7 +84,7 @@ class PiholeConfig(models.Model):
 
     # Multi-instance credential support
     env_prefix = models.CharField(
-        max_length=50, blank=True, default="",
+        max_length=50, default="PRIMARY",
         help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)"
     )
 
@@ -92,34 +92,11 @@ class PiholeConfig(models.Model):
         """Read Pi-hole credentials from environment variables using configured prefix.
 
         Env var pattern: PIHOLE_{PREFIX}_URL, PIHOLE_{PREFIX}_PASSWORD, PIHOLE_{PREFIX}_VERIFY_SSL
-        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL
         """
-        legacy_url = getattr(settings, "PIHOLE_URL", "") or ""
-        legacy_password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
-        legacy_verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
-
-        if self.env_prefix:
-            prefix = self.env_prefix.upper()
-            url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
-            password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
-            verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
-
-            # Fall back to legacy env vars if prefixed vars are missing
-            if not (url and password) and (legacy_url or legacy_password):
-                logger.warning(
-                    "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
-                    "prefixed env vars for '%s' are not configured. "
-                    "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
-                    self.name, prefix, prefix, prefix,
-                )
-                url = legacy_url
-                password = legacy_password
-                verify_ssl = legacy_verify_ssl
-        else:
-            # Legacy single-instance fallback
-            url = legacy_url
-            password = legacy_password
-            verify_ssl = legacy_verify_ssl
+        prefix = self.env_prefix.upper()
+        url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
+        password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
+        verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
         return {
             "url": url,
             "password": password,
@@ -133,8 +110,8 @@ class PiholeConfig(models.Model):
 ```
 
 **Migration:** `0003_add_multi_instance_fields.py`
-- Add `env_prefix` field
-- Data migration: if existing `PiholeConfig` rows have no `env_prefix`, set it to `"PRIMARY"` for the first active config (so existing `PIHOLE_URL` env var users can rename to `PIHOLE_PRIMARY_URL`). Legacy env vars continue working as a fallback with a deprecation warning until users migrate to prefixed vars.
+- Add `env_prefix` field (required, default `"PRIMARY"`)
+- Data migration: existing `PiholeConfig` rows get `env_prefix = "PRIMARY"`
 
 ### Phase 2: Credential Service Refactor
 
@@ -148,18 +125,11 @@ class CredentialService:
     def get_credentials(config: PiholeConfig) -> dict:
         """Get Pi-hole credentials for a specific config instance."""
         creds = config.get_pihole_credentials()
+        prefix = config.env_prefix.upper()
         if not creds["url"]:
-            raise ValueError(
-                f"PIHOLE_{config.env_prefix.upper()}_URL environment variable is required"
-                if config.env_prefix
-                else "PIHOLE_URL environment variable is required (deprecated: use env_prefix)"
-            )
+            raise ValueError(f"PIHOLE_{prefix}_URL environment variable is required")
         if not creds["password"]:
-            raise ValueError(
-                f"PIHOLE_{config.env_prefix.upper()}_PASSWORD environment variable is required"
-                if config.env_prefix
-                else "PIHOLE_PASSWORD environment variable is required (deprecated: use env_prefix)"
-            )
+            raise ValueError(f"PIHOLE_{prefix}_PASSWORD environment variable is required")
         return creds
 
     @staticmethod
@@ -315,7 +285,6 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 | Zero configs exist | Root `/` shows empty state with "Add Instance" |
 | 2+ configs exist | Root `/` shows instance card grid |
 | Env prefix `PRIMARY` set | Reads `PIHOLE_PRIMARY_URL`, `PIHOLE_PRIMARY_PASSWORD` |
-| No prefix (legacy) | Falls back to `PIHOLE_URL`, `PIHOLE_PASSWORD` with deprecation |
 | Per-instance backup | Creates backup using that config's env credentials |
 | Per-instance test connection | Tests with that config's env credentials |
 | Delete instance | Removes config + all backup records + backup files |
@@ -345,26 +314,25 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 | `backup/templates/backup/instance_dashboard.html` | **New** — per-instance dashboard (extracted from dashboard.html) |
 | `backup/templates/backup/settings.html` | Add env_prefix field, per-instance scoping |
 | `backup/templates/backup/base.html` | Add breadcrumb navigation |
-| `.env.example` | Update with prefix pattern, deprecation note for old vars |
+| `.env.example` | Update with prefix pattern (old unprefixed vars removed) |
 | `docs/adr/0000-index.md` | Add ADR-0014 entry |
 
 ---
 
-## Migration Path for Existing Users
+## Migration Path
 
-1. User pulls new Docker image, runs `docker compose up`
-2. Migration `0003` runs automatically:
-   - Existing `PiholeConfig` gets `env_prefix = "PRIMARY"`
-   - All existing backup records stay linked (FK unchanged)
-3. User updates `.env` file to rename env vars:
+**Breaking change**: The old `PIHOLE_URL`/`PIHOLE_PASSWORD`/`PIHOLE_VERIFY_SSL` env vars are no longer supported. All instances must use the prefixed pattern.
+
+1. User pulls new Docker image, updates `.env` file:
    - `PIHOLE_URL` → `PIHOLE_PRIMARY_URL`
    - `PIHOLE_PASSWORD` → `PIHOLE_PRIMARY_PASSWORD`
    - `PIHOLE_VERIFY_SSL` → `PIHOLE_PRIMARY_VERIFY_SSL`
-4. **Legacy env vars continue working** as fallback if user doesn't rename immediately:
-   - Credential resolution tries `PIHOLE_PRIMARY_URL` / `PIHOLE_PRIMARY_PASSWORD` first
-   - If prefixed vars are missing, falls back to legacy `PIHOLE_URL` / `PIHOLE_PASSWORD` with a deprecation log warning
-5. To add a second Pi-hole, user adds env vars with a new prefix (e.g., `PIHOLE_SECONDARY_URL`) and creates a new instance via the UI with `env_prefix = "SECONDARY"`
-6. Container restart required after adding new env vars (standard Docker behavior)
+2. Runs `docker compose up`
+3. Migration `0003` runs automatically:
+   - Existing `PiholeConfig` gets `env_prefix = "PRIMARY"`
+   - All existing backup records stay linked (FK unchanged)
+4. To add a second Pi-hole, user adds env vars with a new prefix (e.g., `PIHOLE_SECONDARY_URL`) and creates a new instance via the UI with `env_prefix = "SECONDARY"`
+5. Container restart required after adding new env vars (standard Docker behavior)
 
 ---
 
@@ -373,7 +341,6 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 ### Positive
 
 - Users can back up multiple Pi-hole instances from a single deployment
-- No breaking changes — single-instance users see identical UI until they add a second instance
 - No new dependencies — credentials stay in environment, no encryption library needed
 - Consistent pattern with nodered-backup project in this repo family
 - Scheduler, retention, and services require minimal changes (already multi-instance ready)
@@ -388,7 +355,7 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 ### Risks
 
 - **Env var misconfiguration**: User sets wrong prefix in UI vs env vars → backup silently fails. Mitigation: show resolved env var status on settings page, validate on test connection.
-- **Legacy env var deprecation**: Users who don't update `.env` still work via fallback, but may be confused by deprecation warnings. Mitigation: clear migration docs, log warning only once per startup.
+- **Breaking change for existing users**: The old `PIHOLE_URL`/`PIHOLE_PASSWORD` env vars no longer work. Users must rename to `PIHOLE_PRIMARY_URL`/`PIHOLE_PRIMARY_PASSWORD`. Mitigation: clear migration docs, app not yet publicly released.
 - **SQLite concurrency**: Multiple instances backing up simultaneously could increase write contention. Mitigation: existing per-config locking in scheduler serializes per-config; SQLite WAL mode handles moderate concurrency.
 
 ---

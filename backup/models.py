@@ -1,14 +1,9 @@
 import logging
 import os
 
-from django.conf import settings
 from django.db import models
 
 logger = logging.getLogger(__name__)
-
-# Track which env_prefix values have already logged the legacy fallback warning
-# to avoid spamming logs on every call to get_pihole_credentials().
-_legacy_fallback_warned = set()
 
 
 class PiholeConfig(models.Model):
@@ -38,8 +33,7 @@ class PiholeConfig(models.Model):
     name = models.CharField(max_length=100, default="Primary Pi-hole")
     env_prefix = models.CharField(
         max_length=50,
-        blank=True,
-        default="",
+        default="PRIMARY",
         help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)",
     )
 
@@ -69,51 +63,12 @@ class PiholeConfig(models.Model):
         """Read Pi-hole credentials from environment variables using configured prefix.
 
         Env var pattern: PIHOLE_{PREFIX}_URL, PIHOLE_{PREFIX}_PASSWORD, PIHOLE_{PREFIX}_VERIFY_SSL
-        Legacy fallback: PIHOLE_URL, PIHOLE_PASSWORD, PIHOLE_VERIFY_SSL
         """
-        legacy_url = getattr(settings, "PIHOLE_URL", "") or ""
-        legacy_password = getattr(settings, "PIHOLE_PASSWORD", "") or ""
-        legacy_verify_ssl = getattr(settings, "PIHOLE_VERIFY_SSL", False)
+        prefix = self.env_prefix.upper()
+        url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
+        password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
+        verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
 
-        if self.env_prefix:
-            prefix = self.env_prefix.upper()
-            url = os.environ.get(f"PIHOLE_{prefix}_URL", "")
-            password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
-            verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
-
-            if not url and not password:
-                # Neither prefixed var set — fall back to legacy credentials
-                if legacy_url and legacy_password:
-                    if prefix not in _legacy_fallback_warned:
-                        _legacy_fallback_warned.add(prefix)
-                        logger.warning(
-                            "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
-                            "prefixed env vars for '%s' are not configured. "
-                            "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
-                            self.name,
-                            prefix,
-                            prefix,
-                            prefix,
-                        )
-                    url = legacy_url
-                    password = legacy_password
-                    verify_ssl = legacy_verify_ssl
-            elif not (url and password):
-                # Partial prefixed config — one var set, other missing
-                missing = f"PIHOLE_{prefix}_PASSWORD" if url else f"PIHOLE_{prefix}_URL"
-                logger.error(
-                    "Pi-hole config '%s' has incomplete prefixed env vars: %s is not set. "
-                    "Set both PIHOLE_%s_URL and PIHOLE_%s_PASSWORD, or remove both to use legacy fallback.",
-                    self.name,
-                    missing,
-                    prefix,
-                    prefix,
-                )
-        else:
-            # Legacy single-instance fallback
-            url = legacy_url
-            password = legacy_password
-            verify_ssl = legacy_verify_ssl
         return {
             "url": url,
             "password": password,

@@ -36,8 +36,7 @@ class Migration(migrations.Migration):
             model_name="piholeconfig",
             name="env_prefix",
             field=models.CharField(
-                blank=True,
-                default="",
+                default="PRIMARY",
                 help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)",
                 max_length=50,
             ),

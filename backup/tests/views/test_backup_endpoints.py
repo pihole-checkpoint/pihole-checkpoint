@@ -35,14 +35,11 @@ class TestTestConnectionEndpoint:
             verify_ssl=False,
         )
 
-    def test_requires_env_credentials(self, client, pihole_config, auth_disabled_settings, monkeypatch, settings):
+    def test_requires_env_credentials(self, client, pihole_config, auth_disabled_settings, monkeypatch):
         """Should require env credentials for the config's prefix."""
         url = reverse("test_connection", args=[pihole_config.id])
 
-        # Missing password from both prefixed and legacy
         monkeypatch.delenv("PIHOLE_PRIMARY_PASSWORD", raising=False)
-        settings.PIHOLE_URL = ""
-        settings.PIHOLE_PASSWORD = ""
 
         response = client.post(url)
         assert response.json()["success"] is False
