@@ -175,7 +175,7 @@
             </div>
             <div class="card-body">
                 <p>Permanently delete this instance and all its backup records and files.</p>
-                <form method="post" action="{% url 'delete_instance' config.id %}" onsubmit="return confirm('Delete instance &quot;{{ config.name }}&quot; and all its backups? This cannot be undone.');">
+                <form method="post" action="{% url 'delete_instance' config.id %}" onsubmit="return confirm('Delete instance &quot;{{ config.name|escapejs }}&quot; and all its backups? This cannot be undone.');">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger">
                         <i class="bi bi-trash"></i> Delete Instance

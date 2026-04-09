@@ -188,7 +188,9 @@ def settings_redirect(request):
 @require_POST
 def test_connection(request, config_id):
     """AJAX endpoint to test Pi-hole connection using environment credentials."""
-    config = get_object_or_404(PiholeConfig, id=config_id)
+    config = PiholeConfig.objects.filter(id=config_id).first()
+    if config is None:
+        return JsonResponse({"success": False, "error": "Configuration not found."}, status=404)
 
     try:
         creds = CredentialService.get_credentials(config)
@@ -219,7 +221,9 @@ def test_connection(request, config_id):
 @require_POST
 def create_backup(request, config_id):
     """AJAX endpoint to create a manual backup."""
-    config = get_object_or_404(PiholeConfig, id=config_id)
+    config = PiholeConfig.objects.filter(id=config_id).first()
+    if config is None:
+        return JsonResponse({"success": False, "error": "Configuration not found."}, status=404)
 
     try:
         service = BackupService(config)
