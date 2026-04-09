@@ -94,6 +94,15 @@ def instance_settings(request, config_id):
         form = PiholeConfigForm(request.POST, instance=config)
         if form.is_valid():
             form.save()
+
+            # Refresh scheduler so changes take effect immediately
+            try:
+                from .management.commands.runapscheduler import refresh_backup_schedules
+
+                refresh_backup_schedules()
+            except Exception:
+                logger.exception("Settings saved, but failed to refresh backup schedules")
+
             messages.success(request, "Settings saved successfully!")
             return redirect("instance_settings", config_id=config.id)
     else:
@@ -119,6 +128,18 @@ def add_instance(request):
         form = PiholeConfigForm(request.POST)
         if form.is_valid():
             config = form.save()
+
+            # Refresh scheduler so the new instance starts scheduling promptly
+            try:
+                from .management.commands.runapscheduler import refresh_backup_schedules
+
+                refresh_backup_schedules()
+            except Exception:
+                logger.exception(
+                    "Instance '%s' created, but failed to refresh backup schedules",
+                    config.name,
+                )
+
             messages.success(request, f"Instance '{config.name}' created successfully!")
             return redirect("instance_settings", config_id=config.id)
     else:
