@@ -170,13 +170,13 @@ def delete_instance(request, config_id):
             try:
                 filepath.relative_to(backup_dir)
             except ValueError:
-                logger.warning(f"Skipping file outside backup dir: {filepath}")
+                logger.warning("Skipping file outside backup dir: %s", filepath)
                 continue
             if filepath.exists():
                 try:
                     filepath.unlink()
                 except OSError as e:
-                    logger.error(f"Failed to delete backup file {filepath}: {e}")
+                    logger.error("Failed to delete backup file %s: %s", filepath, e)
 
     name = config.name
     config.delete()  # Cascade deletes BackupRecord rows

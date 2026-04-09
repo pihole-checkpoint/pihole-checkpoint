@@ -81,21 +81,34 @@ class PiholeConfig(models.Model):
             password = os.environ.get(f"PIHOLE_{prefix}_PASSWORD", "")
             verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
 
-            if not (url and password) and (legacy_url or legacy_password):
-                if prefix not in _legacy_fallback_warned:
-                    _legacy_fallback_warned.add(prefix)
-                    logger.warning(
-                        "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
-                        "prefixed env vars for '%s' are not configured. "
-                        "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
-                        self.name,
-                        prefix,
-                        prefix,
-                        prefix,
-                    )
-                url = legacy_url
-                password = legacy_password
-                verify_ssl = legacy_verify_ssl
+            if not url and not password:
+                # Neither prefixed var set — fall back to legacy credentials
+                if legacy_url or legacy_password:
+                    if prefix not in _legacy_fallback_warned:
+                        _legacy_fallback_warned.add(prefix)
+                        logger.warning(
+                            "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
+                            "prefixed env vars for '%s' are not configured. "
+                            "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
+                            self.name,
+                            prefix,
+                            prefix,
+                            prefix,
+                        )
+                    url = legacy_url
+                    password = legacy_password
+                    verify_ssl = legacy_verify_ssl
+            elif not (url and password):
+                # Partial prefixed config — one var set, other missing
+                missing = f"PIHOLE_{prefix}_PASSWORD" if url else f"PIHOLE_{prefix}_URL"
+                logger.error(
+                    "Pi-hole config '%s' has incomplete prefixed env vars: %s is not set. "
+                    "Set both PIHOLE_%s_URL and PIHOLE_%s_PASSWORD, or remove both to use legacy fallback.",
+                    self.name,
+                    missing,
+                    prefix,
+                    prefix,
+                )
         else:
             # Legacy single-instance fallback
             url = legacy_url
