@@ -59,6 +59,7 @@ class PiholeConfig(models.Model):
         ("auth_error", "Authentication Error"),
         ("unreachable", "Unreachable"),
         ("not_configured", "Not Configured"),
+        ("removed", "Removed"),
     ]
 
     last_successful_backup = models.DateTimeField(null=True, blank=True)

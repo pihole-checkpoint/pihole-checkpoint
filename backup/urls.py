@@ -8,7 +8,6 @@ urlpatterns = [
     # Instance management
     path("instances/<int:config_id>/", views.instance_dashboard, name="instance_dashboard"),
     path("instances/<int:config_id>/settings/", views.instance_settings, name="instance_settings"),
-    path("instances/<int:config_id>/delete/", views.delete_instance, name="delete_instance"),
     # Per-instance API endpoints
     path("instances/<int:config_id>/backup/", views.create_backup, name="create_backup"),
     path("instances/<int:config_id>/test-connection/", views.test_connection, name="test_connection"),

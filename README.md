@@ -58,7 +58,7 @@ environment:
 
 On first startup, a `PiholeConfig` record is automatically created for each discovered prefix (e.g., "Gym", "Bonus"). Existing configs are not overwritten on subsequent restarts.
 
-> **Note:** If a previously configured `PIHOLE_{PREFIX}_URL` is removed from the environment, the corresponding instance will be marked as "Not Configured" on the next restart. To automatically remove stale instances and their backup files, set `PRUNE_STALE_INSTANCES=true`.
+> **Note:** If a previously configured `PIHOLE_{PREFIX}_URL` is removed from the environment, the instance is marked as "Removed" on the next restart. Scheduled backups stop, but existing backups are retained and can still be downloaded or deleted individually.
 
 ## Environment Variables
 

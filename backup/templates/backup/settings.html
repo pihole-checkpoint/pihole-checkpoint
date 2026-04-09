@@ -38,6 +38,8 @@
                                 <span class="text-danger"><i class="bi bi-x-circle"></i> Unreachable</span>
                                 {% elif config.connection_status == "not_configured" %}
                                 <span class="text-warning"><i class="bi bi-exclamation-circle"></i> Not Configured</span>
+                                {% elif config.connection_status == "removed" %}
+                                <span class="text-muted"><i class="bi bi-dash-circle"></i> Removed</span>
                                 {% else %}
                                 <span class="text-muted"><i class="bi bi-question-circle"></i> Unknown</span>
                                 {% endif %}
@@ -160,7 +162,7 @@ PIHOLE_{PREFIX}_MAX_BACKUPS=10
 PIHOLE_{PREFIX}_MAX_AGE_DAYS=30</code></pre>
 
                 <h6>Removing Instances</h6>
-                <p class="small text-muted">Remove the <code>PIHOLE_{PREFIX}_URL</code> env var and restart. By default, the instance will be marked as <code>not_configured</code>. To automatically remove stale instances and their backups on restart, set <code>PRUNE_STALE_INSTANCES=true</code>.</p>
+                <p class="small text-muted">Remove the <code>PIHOLE_{PREFIX}_URL</code> env var and restart. The instance will be marked as removed and scheduled backups will stop. Existing backups are retained as orphaned and can be downloaded or deleted individually.</p>
             </div>
         </div>
     </div>

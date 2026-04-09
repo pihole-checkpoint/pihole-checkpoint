@@ -109,34 +109,6 @@ def instance_settings(request, config_id):
     )
 
 
-@require_POST
-def delete_instance(request, config_id):
-    """Delete a Pi-hole instance and all its backups."""
-    config = get_object_or_404(PiholeConfig, id=config_id)
-
-    # Delete backup files from disk
-    backup_dir = Path(settings.BACKUP_DIR).resolve()
-    for record in config.backups.all():
-        if record.file_path:
-            filepath = Path(record.file_path).resolve()
-            try:
-                filepath.relative_to(backup_dir)
-            except ValueError:
-                logger.warning("Skipping file outside backup dir: %s", filepath)
-                continue
-            if filepath.exists():
-                try:
-                    filepath.unlink()
-                except OSError as e:
-                    logger.error("Failed to delete backup file %s: %s", filepath, e)
-
-    name = config.name
-    config.delete()  # Cascade deletes BackupRecord rows
-
-    messages.success(request, f"Instance '{name}' deleted.")
-    return redirect("dashboard")
-
-
 def settings_redirect(request):
     """Legacy /settings/ redirect to instance settings."""
     config = PiholeConfig.objects.first()

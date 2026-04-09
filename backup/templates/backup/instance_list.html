@@ -52,6 +52,8 @@
                         <span class="badge bg-danger" title="{{ item.config.connection_error|truncatechars:100 }}">Unreachable</span>
                         {% elif item.config.connection_status == "not_configured" %}
                         <span class="badge bg-warning text-dark">Not Configured</span>
+                        {% elif item.config.connection_status == "removed" %}
+                        <span class="badge bg-secondary">Removed</span>
                         {% else %}
                         <span class="badge bg-secondary">Unknown</span>
                         {% endif %}

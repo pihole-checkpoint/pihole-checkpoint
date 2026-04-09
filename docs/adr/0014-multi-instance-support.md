@@ -179,7 +179,6 @@ urlpatterns = [
     path("instances/add/", views.add_instance, name="add_instance"),
     path("instances/<int:config_id>/", views.instance_dashboard, name="instance_dashboard"),
     path("instances/<int:config_id>/settings/", views.instance_settings, name="instance_settings"),
-    path("instances/<int:config_id>/delete/", views.delete_instance, name="delete_instance"),
 
     # Per-instance API endpoints
     path("instances/<int:config_id>/backup/", views.create_backup, name="create_backup"),
@@ -239,15 +238,13 @@ def instance_settings(request, config_id):
 
 **Implementation note:** `add_instance()` was not implemented — instances are auto-discovered from environment variables via the `discover_instances` management command (run on startup). Manual instance creation via the UI is not currently supported.
 
-**New `delete_instance(config_id)`** — POST-only, deletes config + all backup records/files.
-
 **Refactored `create_backup(config_id)`** — use `get_object_or_404` instead of `.first()`.
 
 **Refactored `test_connection(config_id)`** — load config by ID, call `CredentialService.get_credentials(config)`.
 
 **`settings_redirect()`** — redirects `/settings/` to first config's settings page or dashboard.
 
-**Auto-discovery behavior:** On startup, `discover_instances_from_env()` scans for `PIHOLE_{PREFIX}_URL` environment variables. Instances whose env vars are no longer present are marked as "not_configured" (or removed if `PRUNE_STALE_INSTANCES=true`).
+**Auto-discovery behavior:** On startup, `discover_instances_from_env()` scans for `PIHOLE_{PREFIX}_URL` environment variables. Instances whose env vars are no longer present are marked as `removed` (connection_status) and deactivated (is_active=False). Their backup records and files are retained as orphaned backups — users can still download or delete them individually. The instance dashboard shows an alert banner for removed instances explaining the situation.
 
 ### Phase 6: Templates
 
@@ -267,7 +264,7 @@ def instance_settings(request, config_id):
 - Add `env_prefix` field (with help text explaining the env var pattern)
 - Show resolved env var status (URL detected, password detected)
 - Per-instance scoping via `/instances/<id>/settings/`
-- "Delete Instance" danger zone at bottom
+- Instance removal handled by env var lifecycle (no delete button needed)
 
 **Modified `backup/templates/backup/base.html`:**
 - Add breadcrumb navigation below navbar when on instance pages
@@ -291,14 +288,14 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 | Env prefix `PRIMARY` set | Reads `PIHOLE_PRIMARY_URL`, `PIHOLE_PRIMARY_PASSWORD` |
 | Per-instance backup | Creates backup using that config's env credentials |
 | Per-instance test connection | Tests with that config's env credentials |
-| Delete instance | Removes config + all backup records + backup files |
+| Instance env var removed | Instance marked as removed, backups retained as orphaned |
 | Instance with missing env vars | Shows clear error about which env var is missing |
 
 **Files to update:**
 - `backup/tests/conftest.py` — multi-config fixtures with `env_prefix`
 - `backup/tests/unit/test_credential_service.py` — test prefix-based credential resolution
 - `backup/tests/views/test_dashboard.py` — test single vs multi-config routing
-- `backup/tests/views/test_instance_management.py` — new: add/delete instance flows
+- `backup/tests/views/` — instance settings views
 
 ---
 

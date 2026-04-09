@@ -140,37 +140,21 @@ class TestDiscoverInstancesFromEnv:
         config = PiholeConfig.objects.get(env_prefix="GYM")
         assert config.backup_frequency == "daily"  # model default
 
-    def test_marks_instance_not_configured_when_env_var_gone(self):
-        """Instance should be marked not_configured when its env var is removed (default behavior)."""
+    def test_marks_instance_removed_when_env_var_gone(self):
+        """Instance should be marked as removed when its env var is no longer present."""
         PiholeConfig.objects.create(name="Old Instance", env_prefix="OLD")
         env = _clean_env({"PIHOLE_GYM_URL": "https://192.168.1.186", "PIHOLE_GYM_PASSWORD": "secret"})
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
 
-        assert result["removed"] == []
-        old = PiholeConfig.objects.get(env_prefix="OLD")
-        assert old.connection_status == "not_configured"
-        assert "GYM" in result["created"]
-
-    def test_removes_instance_when_prune_enabled(self):
-        """Instance should be removed when PRUNE_STALE_INSTANCES=true."""
-        PiholeConfig.objects.create(name="Old Instance", env_prefix="OLD")
-        env = _clean_env(
-            {
-                "PIHOLE_GYM_URL": "https://192.168.1.186",
-                "PIHOLE_GYM_PASSWORD": "secret",
-                "PRUNE_STALE_INSTANCES": "true",
-            }
-        )
-        with patch.dict("os.environ", env, clear=True):
-            result = discover_instances_from_env()
-
         assert "OLD" in result["removed"]
-        assert not PiholeConfig.objects.filter(env_prefix="OLD").exists()
+        old = PiholeConfig.objects.get(env_prefix="OLD")
+        assert old.connection_status == "removed"
+        assert old.is_active is False
         assert "GYM" in result["created"]
 
-    def test_removes_backup_files_on_instance_removal(self, tmp_path, settings):
-        """Removing an instance should also delete its backup files from disk."""
+    def test_retains_backups_on_instance_removal(self, tmp_path, settings):
+        """Marking an instance as removed should retain its backup files."""
         settings.BACKUP_DIR = tmp_path
         config = PiholeConfig.objects.create(name="Old", env_prefix="OLD")
         backup_file = tmp_path / "old_backup.zip"
@@ -183,13 +167,15 @@ class TestDiscoverInstancesFromEnv:
             status="success",
         )
 
-        env = _clean_env({"PRUNE_STALE_INSTANCES": "true"})
+        env = _clean_env({})
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
 
         assert "OLD" in result["removed"]
-        assert not backup_file.exists()
-        assert not BackupRecord.objects.filter(config=config).exists()
+        config.refresh_from_db()
+        assert config.connection_status == "removed"
+        assert backup_file.exists()
+        assert BackupRecord.objects.filter(config=config).count() == 1
 
     def test_does_not_remove_instance_with_env_var_present(self):
         """Instance should NOT be removed when its env var is still set."""

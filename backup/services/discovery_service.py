@@ -3,10 +3,8 @@
 import logging
 import os
 import re
-from pathlib import Path
 
 import requests
-from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from backup.models import PiholeConfig
@@ -83,32 +81,12 @@ def _build_config_kwargs(prefix):
     return kwargs
 
 
-def _delete_backup_files(config):
-    """Delete backup files from disk for a config instance."""
-    backup_dir = Path(settings.BACKUP_DIR).resolve()
-    for record in config.backups.all():
-        if not record.file_path:
-            continue
-        filepath = Path(record.file_path).resolve()
-        try:
-            filepath.relative_to(backup_dir)
-        except ValueError:
-            logger.warning("Skipping file outside backup dir: %s", filepath)
-            continue
-        if filepath.exists():
-            try:
-                filepath.unlink()
-            except OSError as e:
-                logger.error("Failed to delete backup file %s: %s", filepath, e)
-
-
 def discover_instances_from_env(force=False):
     """Scan environment for PIHOLE_*_URL vars, create/update/remove PiholeConfig rows.
 
-    Instances whose PIHOLE_{PREFIX}_URL env var is no longer present are treated
-    as stale. If PRUNE_STALE_INSTANCES is enabled, they are removed along with
-    their backup records and files. Otherwise, they are retained and marked
-    ``not_configured``.
+    Instances whose PIHOLE_{PREFIX}_URL env var is no longer present are
+    marked as ``removed`` and deactivated. Their backup records and files
+    are retained as orphaned backups.
 
     Args:
         force: If True, re-apply env var values to existing instances
@@ -120,32 +98,22 @@ def discover_instances_from_env(force=False):
     prefixes = _extract_prefixes()
     created, skipped, updated, removed = [], [], [], []
 
-    # Mark instances whose env vars are gone as inactive (previously deleted them)
-    prune = os.environ.get("PRUNE_STALE_INSTANCES", "false").lower() in ("true", "1", "yes")
+    # Mark instances whose env vars are gone as removed (backups are retained)
     for config in PiholeConfig.objects.all():
         if config.env_prefix not in prefixes:
-            if prune:
-                logger.info(
-                    "Removing instance %s (pk=%d) — PIHOLE_%s_URL no longer set",
-                    config.name,
-                    config.pk,
-                    config.env_prefix,
-                )
-                _delete_backup_files(config)
-                removed.append(config.env_prefix)
-                config.delete()
-            else:
+            if config.connection_status != "removed":
                 logger.warning(
-                    "Instance %s (pk=%d) has no PIHOLE_%s_URL env var. "
-                    "Set PRUNE_STALE_INSTANCES=true to auto-remove stale instances on startup.",
+                    "Instance %s (pk=%d) marked as removed — PIHOLE_%s_URL no longer set. "
+                    "Backups are retained as orphaned.",
                     config.name,
                     config.pk,
                     config.env_prefix,
                 )
-                if config.connection_status != "not_configured":
-                    config.connection_status = "not_configured"
-                    config.connection_error = f"PIHOLE_{config.env_prefix}_URL environment variable not set"
-                    config.save(update_fields=["connection_status", "connection_error"])
+                config.connection_status = "removed"
+                config.connection_error = f"PIHOLE_{config.env_prefix}_URL environment variable no longer set"
+                config.is_active = False
+                config.save(update_fields=["connection_status", "connection_error", "is_active"])
+            removed.append(config.env_prefix)
 
     for prefix in sorted(prefixes):
         existing = PiholeConfig.objects.filter(env_prefix=prefix).first()
@@ -207,6 +175,11 @@ def check_connections():
     """
     results = {}
     for config in PiholeConfig.objects.all():
+        # Skip removed instances — they have no env vars to check
+        if config.connection_status == "removed":
+            results[config.env_prefix] = "removed"
+            continue
+
         if not CredentialService.is_configured(config):
             config.connection_status = "not_configured"
             config.connection_error = ""

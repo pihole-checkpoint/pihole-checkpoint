@@ -37,6 +37,15 @@
 </div>
 {% else %}
 
+{% if config.connection_status == "removed" %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Orphaned instance.</strong> The <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> environment variable is no longer set.
+    This instance's backups are retained below. To re-activate, restore the env var and restart.
+    To clean up, delete individual backups or remove all backups and the instance will be purged on next restart.
+</div>
+{% endif %}
+
 <!-- Status Cards -->
 <div class="row mb-4">
     <div class="col-md-4">
@@ -56,6 +65,8 @@
                     <span class="badge bg-danger status-badge me-2">Unreachable</span>
                     {% elif config.connection_status == "not_configured" %}
                     <span class="badge bg-warning text-dark status-badge me-2">Not Configured</span>
+                    {% elif config.connection_status == "removed" %}
+                    <span class="badge bg-secondary status-badge me-2">Removed</span>
                     {% else %}
                     <span class="badge bg-secondary status-badge me-2">Unknown</span>
                     {% endif %}
