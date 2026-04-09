@@ -8,19 +8,24 @@ import subprocess
 
 @functools.lru_cache(maxsize=1)
 def _get_app_info():
-    """Get app version and git commit hash (cached for process lifetime)."""
+    """Get app version and build metadata (cached for process lifetime)."""
     try:
         version = importlib.metadata.version("pihole-checkpoint")
     except importlib.metadata.PackageNotFoundError:
         version = "dev"
 
-    # Prefer GIT_COMMIT env var (set at Docker build time), fall back to git CLI
-    commit = os.environ.get("GIT_COMMIT", "")
-    if not commit:
+    # Prefer GIT_COMMIT_SHORT, then truncate GIT_COMMIT, then git CLI
+    commit_short = os.environ.get("GIT_COMMIT_SHORT", "")
+    if not commit_short:
+        commit_full = os.environ.get("GIT_COMMIT", "")
+        if commit_full:
+            commit_short = commit_full[:7]
+
+    if not commit_short:
         try:
-            commit = (
+            commit_short = (
                 subprocess.check_output(
-                    ["git", "rev-parse", "HEAD"],
+                    ["git", "rev-parse", "--short", "HEAD"],
                     stderr=subprocess.DEVNULL,
                     timeout=5,
                 )
@@ -28,19 +33,22 @@ def _get_app_info():
                 .strip()
             )
         except Exception:
-            commit = ""
+            commit_short = ""
 
-    # Use short hash for display
-    if len(commit) > 7:
-        commit = commit[:7]
-
-    return {"version": version, "commit": commit}
+    return {
+        "version": version,
+        "commit": commit_short,
+        "build_date": os.environ.get("BUILD_DATE", ""),
+        "build_ref": os.environ.get("BUILD_REF", ""),
+    }
 
 
 def app_info(request):
-    """Add app version and git commit to template context."""
+    """Add app version and build metadata to template context."""
     info = _get_app_info()
     return {
         "app_version": info["version"],
         "git_commit": info["commit"],
+        "build_date": info["build_date"],
+        "build_ref": info["build_ref"],
     }
