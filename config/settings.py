@@ -143,7 +143,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Pi-hole credentials — legacy single-instance fallback (deprecated).
 # New installs should use the PIHOLE_{PREFIX}_* env var pattern (ADR-0014).
-# These are read by PiholeConfig.get_pihole_credentials() when env_prefix is empty.
+# These are read by PiholeConfig.get_pihole_credentials() when env_prefix is
+# empty, and also act as a fallback when a prefixed configuration is missing
+# its corresponding PIHOLE_{PREFIX}_* env vars.
 PIHOLE_URL = os.environ.get("PIHOLE_URL", "")
 PIHOLE_PASSWORD = os.environ.get("PIHOLE_PASSWORD", "")
 PIHOLE_VERIFY_SSL = os.environ.get("PIHOLE_VERIFY_SSL", "false").lower() == "true"

@@ -146,7 +146,9 @@ def delete_instance(request, config_id):
     for record in config.backups.all():
         if record.file_path:
             filepath = Path(record.file_path).resolve()
-            if not str(filepath).startswith(str(backup_dir)):
+            try:
+                filepath.relative_to(backup_dir)
+            except ValueError:
                 logger.warning(f"Skipping file outside backup dir: {filepath}")
                 continue
             if filepath.exists():

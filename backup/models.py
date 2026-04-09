@@ -6,6 +6,10 @@ from django.db import models
 
 logger = logging.getLogger(__name__)
 
+# Track which env_prefix values have already logged the legacy fallback warning
+# to avoid spamming logs on every call to get_pihole_credentials().
+_legacy_fallback_warned = set()
+
 
 class PiholeConfig(models.Model):
     """Configuration for a Pi-hole instance.
@@ -78,15 +82,17 @@ class PiholeConfig(models.Model):
             verify_ssl = os.environ.get(f"PIHOLE_{prefix}_VERIFY_SSL", "false").lower() == "true"
 
             if not (url and password) and (legacy_url or legacy_password):
-                logger.warning(
-                    "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
-                    "prefixed env vars for '%s' are not configured. "
-                    "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
-                    self.name,
-                    prefix,
-                    prefix,
-                    prefix,
-                )
+                if prefix not in _legacy_fallback_warned:
+                    _legacy_fallback_warned.add(prefix)
+                    logger.warning(
+                        "Pi-hole config '%s' is using legacy PIHOLE_URL/PIHOLE_PASSWORD because "
+                        "prefixed env vars for '%s' are not configured. "
+                        "Please migrate to PIHOLE_%s_URL / PIHOLE_%s_PASSWORD.",
+                        self.name,
+                        prefix,
+                        prefix,
+                        prefix,
+                    )
                 url = legacy_url
                 password = legacy_password
                 verify_ssl = legacy_verify_ssl
