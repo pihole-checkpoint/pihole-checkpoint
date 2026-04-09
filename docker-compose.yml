@@ -6,6 +6,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./backups:/app/backups
+    # Pass all .env vars so PIHOLE_{PREFIX}_* credentials reach the container
     env_file:
       - .env
     environment:

@@ -35,6 +35,7 @@ class PiholeConfig(models.Model):
     env_prefix = models.CharField(
         max_length=50,
         default="PRIMARY",
+        unique=True,
         help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)",
         validators=[
             RegexValidator(

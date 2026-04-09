@@ -86,7 +86,7 @@ class PiholeConfig(models.Model):
 
     # Multi-instance credential support
     env_prefix = models.CharField(
-        max_length=50, default="PRIMARY",
+        max_length=50, default="PRIMARY", unique=True,
         help_text="Environment variable prefix (e.g., PRIMARY reads PIHOLE_PRIMARY_URL)"
     )
 
@@ -111,8 +111,11 @@ class PiholeConfig(models.Model):
         return bool(creds["url"] and creds["password"])
 ```
 
-**Migration:** `0003_add_multi_instance_fields.py`
-- Add `env_prefix` field (required, default `"PRIMARY"`)
+**Migrations:**
+- `0003_add_multi_instance_fields.py` — Add `env_prefix` field (required, default `"PRIMARY"`)
+- `0004_add_connection_status.py` — Add `connection_status` and `connection_error` fields
+- `0005_alter_piholeconfig_env_prefix.py` — Add regex validator to `env_prefix`
+- `0006_piholeconfig_env_prefix_unique.py` — Add `unique=True` constraint to `env_prefix`
 - Data migration: existing `PiholeConfig` rows get `env_prefix = "PRIMARY"`
 
 ### Phase 2: Credential Service Refactor *(implemented as designed)*
@@ -228,12 +231,12 @@ def instance_dashboard(request, config_id):
     })
 ```
 
-**New `instance_settings(config_id)`:**
+**New `instance_settings(config_id)`** — read-only view (no form):
 ```python
 def instance_settings(request, config_id):
     config = get_object_or_404(PiholeConfig, id=config_id)
-    # Form handling with PiholeConfigForm(instance=config)
-    # ...
+    credential_status = CredentialService.get_status(config)
+    return render(request, "backup/settings.html", {"config": config, "credential_status": credential_status})
 ```
 
 **Implementation note:** `add_instance()` was not implemented — instances are auto-discovered from environment variables via the `discover_instances` management command (run on startup). Manual instance creation via the UI is not currently supported.
@@ -270,11 +273,11 @@ def instance_settings(request, config_id):
 - Add breadcrumb navigation below navbar when on instance pages
 - "Dashboard > Instance Name > Settings" pattern
 
-### Phase 7: Form Updates
+### Phase 7: Form Removal
 
 **File:** `backup/forms.py`
 
-Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefix format and uniqueness.
+`PiholeConfigForm` was removed — settings are read-only, all configuration is via environment variables. Only `LoginForm` remains.
 
 ### Phase 8: Testing
 
@@ -303,19 +306,26 @@ Add `env_prefix` to `PiholeConfigForm.Meta.fields` with validation for the prefi
 
 | File | Changes |
 |------|---------|
-| `backup/models.py` | Add `env_prefix` field + `get_pihole_credentials()` method |
-| `backup/migrations/0003_*.py` | **New** — add fields, data migration for existing configs |
+| `backup/models.py` | Add `env_prefix` field (unique) + `get_pihole_credentials()` method |
+| `backup/migrations/0003-0006` | **New** — add fields, validators, unique constraint |
 | `backup/services/credential_service.py` | Refactor to accept `config` parameter, delegate to model method |
-| `backup/services/backup_service.py` | Pass `self.config` to `CredentialService.get_credentials()` |
+| `backup/services/discovery_service.py` | **New** — auto-discover instances from `PIHOLE_*` env vars |
+| `backup/services/backup_service.py` | Pass `self.config` to `CredentialService.get_credentials()`, path traversal protection |
 | `backup/services/restore_service.py` | Pass `self.config` to `CredentialService.get_credentials()` |
-| `backup/views.py` | Add instance CRUD views, refactor existing views for config_id |
+| `backup/views.py` | Add instance views, read-only settings, remove dead orphan code |
 | `backup/urls.py` | Add instance-prefixed URL patterns |
-| `backup/forms.py` | Add `env_prefix` field to form with validation |
+| `backup/forms.py` | Remove `PiholeConfigForm` (settings now read-only) |
+| `backup/context_processors.py` | **New** — app version and build metadata |
+| `backup/management/commands/discover_instances.py` | **New** — management command for discovery |
 | `backup/templates/backup/instance_list.html` | **New** — instance card grid overview |
 | `backup/templates/backup/instance_dashboard.html` | **New** — per-instance dashboard (extracted from dashboard.html) |
-| `backup/templates/backup/settings.html` | Add env_prefix field, per-instance scoping |
-| `backup/templates/backup/base.html` | Add breadcrumb navigation |
+| `backup/templates/backup/_connection_badge.html` | **New** — shared connection status badge include |
+| `backup/templates/backup/settings.html` | Read-only per-instance settings, uses shared badge |
+| `backup/templates/backup/base.html` | Add breadcrumb navigation, footer with version |
 | `.env.example` | Update with prefix pattern (old unprefixed vars removed) |
+| `Dockerfile` | Add build metadata ARGs/ENVs |
+| `docker-compose.yml` | Use `env_file: .env` for prefix passthrough |
+| `entrypoint.sh` | Add `discover_instances` step |
 | `docs/adr/0000-index.md` | Add ADR-0014 entry |
 
 ---

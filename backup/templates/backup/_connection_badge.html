@@ -1,0 +1,22 @@
+{% comment %}
+Connection status badge for a PiholeConfig instance.
+Expects: `config` (PiholeConfig) and optional `badge_class` ("status-badge me-2" for dashboard).
+Usage: {% include "backup/_connection_badge.html" with config=item.config %}
+{% endcomment %}
+{% if config.connection_status == "ok" %}
+    {% if config.is_active %}
+    <span class="badge bg-success {{ badge_class }}">Connected</span>
+    {% else %}
+    <span class="badge bg-secondary {{ badge_class }}">Inactive</span>
+    {% endif %}
+{% elif config.connection_status == "auth_error" %}
+<span class="badge bg-danger {{ badge_class }}" title="{{ config.connection_error|truncatechars:100 }}">Auth Error</span>
+{% elif config.connection_status == "unreachable" %}
+<span class="badge bg-danger {{ badge_class }}" title="{{ config.connection_error|truncatechars:100 }}">Unreachable</span>
+{% elif config.connection_status == "not_configured" %}
+<span class="badge bg-warning text-dark {{ badge_class }}">Not Configured</span>
+{% elif config.connection_status == "removed" %}
+<span class="badge bg-secondary {{ badge_class }}">Removed</span>
+{% else %}
+<span class="badge bg-secondary {{ badge_class }}">Unknown</span>
+{% endif %}

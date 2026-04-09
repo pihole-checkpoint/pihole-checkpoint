@@ -30,19 +30,7 @@
                         <tr>
                             <th style="width: 150px;">Status</th>
                             <td>
-                                {% if config.connection_status == "ok" %}
-                                <span class="text-success"><i class="bi bi-check-circle"></i> Connected</span>
-                                {% elif config.connection_status == "auth_error" %}
-                                <span class="text-danger"><i class="bi bi-x-circle"></i> Authentication Error</span>
-                                {% elif config.connection_status == "unreachable" %}
-                                <span class="text-danger"><i class="bi bi-x-circle"></i> Unreachable</span>
-                                {% elif config.connection_status == "not_configured" %}
-                                <span class="text-warning"><i class="bi bi-exclamation-circle"></i> Not Configured</span>
-                                {% elif config.connection_status == "removed" %}
-                                <span class="text-muted"><i class="bi bi-dash-circle"></i> Removed</span>
-                                {% else %}
-                                <span class="text-muted"><i class="bi bi-question-circle"></i> Unknown</span>
-                                {% endif %}
+                                {% include "backup/_connection_badge.html" with config=config %}
                             </td>
                         </tr>
                         {% if config.connection_error %}

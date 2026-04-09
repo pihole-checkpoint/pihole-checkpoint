@@ -53,23 +53,7 @@
             <div class="card-body">
                 <h5 class="card-title text-muted">Pi-hole Status</h5>
                 <div class="d-flex align-items-center">
-                    {% if config.connection_status == "ok" %}
-                        {% if config.is_active %}
-                        <span class="badge bg-success status-badge me-2">Connected</span>
-                        {% else %}
-                        <span class="badge bg-secondary status-badge me-2">Inactive</span>
-                        {% endif %}
-                    {% elif config.connection_status == "auth_error" %}
-                    <span class="badge bg-danger status-badge me-2">Auth Error</span>
-                    {% elif config.connection_status == "unreachable" %}
-                    <span class="badge bg-danger status-badge me-2">Unreachable</span>
-                    {% elif config.connection_status == "not_configured" %}
-                    <span class="badge bg-warning text-dark status-badge me-2">Not Configured</span>
-                    {% elif config.connection_status == "removed" %}
-                    <span class="badge bg-secondary status-badge me-2">Removed</span>
-                    {% else %}
-                    <span class="badge bg-secondary status-badge me-2">Unknown</span>
-                    {% endif %}
+                    {% include "backup/_connection_badge.html" with config=config badge_class="status-badge me-2" %}
                     <span>{{ config.name }}</span>
                 </div>
                 <small class="text-muted">{{ credential_status.url|default:"Not configured" }}</small>

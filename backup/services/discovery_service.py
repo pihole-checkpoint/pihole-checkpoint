@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Fields recognized after PIHOLE_{PREFIX}_
 _KNOWN_FIELDS = {"URL", "PASSWORD", "VERIFY_SSL", "NAME", "SCHEDULE", "TIME", "DAY", "MAX_BACKUPS", "MAX_AGE_DAYS"}
 
+# Non-greedy prefix with exact field match ensures correct split for
+# multi-word prefixes like HOME_OFFICE (regex backtracks until the
+# suffix matches a known field name).
 _ENV_PATTERN = re.compile(r"^PIHOLE_([A-Z][A-Z0-9_]*?)_(" + "|".join(_KNOWN_FIELDS) + r")$")
 
 
@@ -205,7 +208,7 @@ def check_connections():
         except Exception as exc:
             config.connection_status = "unreachable"
             config.connection_error = str(exc)
-            logger.warning("Connection failed: %s — %s", config.name, exc)
+            logger.exception("Connection failed: %s — %s", config.name, exc)
 
         config.save(update_fields=["connection_status", "connection_error"])
         results[config.env_prefix] = config.connection_status

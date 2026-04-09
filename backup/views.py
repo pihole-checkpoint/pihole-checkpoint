@@ -1,6 +1,5 @@
 import logging
 import os
-from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
@@ -184,25 +183,6 @@ def delete_backup(request, backup_id):
     """AJAX endpoint to delete a backup."""
     record = get_object_or_404(BackupRecord, id=backup_id)
     config = record.config
-
-    # Handle orphaned backup records (config was deleted)
-    if not config:
-        logger.warning(f"Deleting orphaned backup record: {record.filename}")
-        if record.file_path:
-            backup_dir = Path(settings.BACKUP_DIR).resolve()
-            filepath = Path(record.file_path).resolve()
-            try:
-                filepath.relative_to(backup_dir)
-            except ValueError:
-                logger.warning("Skipping file outside backup dir: %s", filepath)
-            else:
-                if filepath.exists():
-                    try:
-                        filepath.unlink()
-                    except OSError as e:
-                        logger.error(f"Failed to delete orphaned file: {e}")
-        record.delete()
-        return JsonResponse({"success": True})
 
     try:
         service = BackupService(config)
