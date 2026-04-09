@@ -42,15 +42,42 @@ A web application for backing up Pi-hole v6 instances via the Teleporter API. Ru
 
 3. Open http://localhost:8000 to view the dashboard and configure backup schedules.
 
+## Multi-Instance Support
+
+Instances are auto-discovered from environment variables on startup. Set `PIHOLE_{PREFIX}_URL` and `PIHOLE_{PREFIX}_PASSWORD` for each Pi-hole — the prefix can be anything you choose (e.g., `GYM`, `BONUS`, `HOME_OFFICE`).
+
+```yaml
+environment:
+  - PIHOLE_GYM_URL=https://192.168.1.186
+  - PIHOLE_GYM_PASSWORD=${PIHOLE_PASSWORD}
+  - PIHOLE_GYM_VERIFY_SSL=false
+  - PIHOLE_BONUS_URL=https://192.168.1.189
+  - PIHOLE_BONUS_PASSWORD=${PIHOLE_PASSWORD}
+  - PIHOLE_BONUS_VERIFY_SSL=false
+```
+
+On first startup, a `PiholeConfig` record is automatically created for each discovered prefix (e.g., "Gym", "Bonus"). Existing configs are not overwritten on subsequent restarts. You can also create instances manually via the web UI.
+
 ## Environment Variables
 
-Each Pi-hole instance uses a prefix for its environment variables. Set the prefix in the web UI when creating an instance.
+### Per-Instance (auto-discovered)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PIHOLE_{PREFIX}_URL` | Yes | Pi-hole admin URL (e.g., `PIHOLE_PRIMARY_URL=http://192.168.1.100`) |
-| `PIHOLE_{PREFIX}_PASSWORD` | Yes | Pi-hole admin password (e.g., `PIHOLE_PRIMARY_PASSWORD=...`) |
+| `PIHOLE_{PREFIX}_URL` | Yes | Pi-hole admin URL |
+| `PIHOLE_{PREFIX}_PASSWORD` | Yes | Pi-hole admin password |
 | `PIHOLE_{PREFIX}_VERIFY_SSL` | No | Verify SSL certificates (default: false) |
+| `PIHOLE_{PREFIX}_NAME` | No | Display name (default: auto-generated from prefix) |
+| `PIHOLE_{PREFIX}_SCHEDULE` | No | Backup frequency: `hourly`, `daily`, `weekly` (default: daily) |
+| `PIHOLE_{PREFIX}_TIME` | No | Backup time for daily/weekly (default: 03:00) |
+| `PIHOLE_{PREFIX}_DAY` | No | Day for weekly backups, 0=Mon..6=Sun (default: 0) |
+| `PIHOLE_{PREFIX}_MAX_BACKUPS` | No | Max backups to keep (default: 10) |
+| `PIHOLE_{PREFIX}_MAX_AGE_DAYS` | No | Delete backups older than N days (default: 30) |
+
+### Global
+
+| Variable | Required | Description |
+|----------|----------|-------------|
 | `TIME_ZONE` | No | Scheduler timezone (default: UTC) |
 | `REQUIRE_AUTH` | No | Enable web UI password protection (default: false) |
 | `APP_PASSWORD` | No | Password for web UI when `REQUIRE_AUTH=true` |

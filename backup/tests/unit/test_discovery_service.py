@@ -29,12 +29,14 @@ class TestDiscoverInstancesFromEnv:
         assert config.name == "Gym"
 
     def test_discovers_multiple_instances(self):
-        env = _clean_env({
-            "PIHOLE_GYM_URL": "https://192.168.1.186",
-            "PIHOLE_GYM_PASSWORD": "secret",
-            "PIHOLE_BONUS_URL": "https://192.168.1.189",
-            "PIHOLE_BONUS_PASSWORD": "secret2",
-        })
+        env = _clean_env(
+            {
+                "PIHOLE_GYM_URL": "https://192.168.1.186",
+                "PIHOLE_GYM_PASSWORD": "secret",
+                "PIHOLE_BONUS_URL": "https://192.168.1.189",
+                "PIHOLE_BONUS_PASSWORD": "secret2",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
 
@@ -52,11 +54,13 @@ class TestDiscoverInstancesFromEnv:
 
     def test_force_updates_existing(self):
         config = PiholeConfig.objects.create(name="Old Name", env_prefix="GYM")
-        env = _clean_env({
-            "PIHOLE_GYM_URL": "https://192.168.1.186",
-            "PIHOLE_GYM_PASSWORD": "secret",
-            "PIHOLE_GYM_NAME": "New Name",
-        })
+        env = _clean_env(
+            {
+                "PIHOLE_GYM_URL": "https://192.168.1.186",
+                "PIHOLE_GYM_PASSWORD": "secret",
+                "PIHOLE_GYM_NAME": "New Name",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env(force=True)
 
@@ -82,11 +86,13 @@ class TestDiscoverInstancesFromEnv:
         assert config.name == "Home Office"
 
     def test_custom_name_from_env(self):
-        env = _clean_env({
-            "PIHOLE_GYM_URL": "https://192.168.1.186",
-            "PIHOLE_GYM_PASSWORD": "secret",
-            "PIHOLE_GYM_NAME": "Gym Pi-hole",
-        })
+        env = _clean_env(
+            {
+                "PIHOLE_GYM_URL": "https://192.168.1.186",
+                "PIHOLE_GYM_PASSWORD": "secret",
+                "PIHOLE_GYM_NAME": "Gym Pi-hole",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             discover_instances_from_env()
 
@@ -94,13 +100,15 @@ class TestDiscoverInstancesFromEnv:
         assert config.name == "Gym Pi-hole"
 
     def test_optional_schedule_fields(self):
-        env = _clean_env({
-            "PIHOLE_GYM_URL": "https://192.168.1.186",
-            "PIHOLE_GYM_PASSWORD": "secret",
-            "PIHOLE_GYM_SCHEDULE": "weekly",
-            "PIHOLE_GYM_MAX_BACKUPS": "50",
-            "PIHOLE_GYM_MAX_AGE_DAYS": "90",
-        })
+        env = _clean_env(
+            {
+                "PIHOLE_GYM_URL": "https://192.168.1.186",
+                "PIHOLE_GYM_PASSWORD": "secret",
+                "PIHOLE_GYM_SCHEDULE": "weekly",
+                "PIHOLE_GYM_MAX_BACKUPS": "50",
+                "PIHOLE_GYM_MAX_AGE_DAYS": "90",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             discover_instances_from_env()
 
@@ -119,11 +127,13 @@ class TestDiscoverInstancesFromEnv:
         assert PiholeConfig.objects.count() == 0
 
     def test_invalid_schedule_uses_default(self):
-        env = _clean_env({
-            "PIHOLE_GYM_URL": "https://192.168.1.186",
-            "PIHOLE_GYM_PASSWORD": "secret",
-            "PIHOLE_GYM_SCHEDULE": "biweekly",
-        })
+        env = _clean_env(
+            {
+                "PIHOLE_GYM_URL": "https://192.168.1.186",
+                "PIHOLE_GYM_PASSWORD": "secret",
+                "PIHOLE_GYM_SCHEDULE": "biweekly",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             discover_instances_from_env()
 

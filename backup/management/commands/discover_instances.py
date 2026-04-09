@@ -23,9 +23,7 @@ class Command(BaseCommand):
         if result["updated"]:
             self.stdout.write(f"Updated instances: {', '.join(result['updated'])}")
         if result["skipped"]:
-            self.stdout.write(
-                f"Skipped (already exist): {', '.join(result['skipped'])}"
-            )
+            self.stdout.write(f"Skipped (already exist): {', '.join(result['skipped'])}")
 
         if not any(result.values()):
             self.stdout.write("No PIHOLE_* environment variables found")
