@@ -2,7 +2,7 @@
 
 from django.core.management.base import BaseCommand
 
-from backup.services.discovery_service import discover_instances_from_env
+from backup.services.discovery_service import check_connections, discover_instances_from_env
 
 
 class Command(BaseCommand):
@@ -29,3 +29,10 @@ class Command(BaseCommand):
 
         if not any(result.values()):
             self.stdout.write("No PIHOLE_* environment variables found")
+
+        # Check connections for all instances
+        statuses = check_connections()
+        if statuses:
+            for prefix, status in statuses.items():
+                icon = "OK" if status == "ok" else status.upper()
+                self.stdout.write(f"  {prefix}: {icon}")

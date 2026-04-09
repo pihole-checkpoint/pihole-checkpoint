@@ -46,8 +46,23 @@ class PiholeConfig(models.Model):
 
     is_active = models.BooleanField(default=True, help_text="Enable scheduled backups")
 
+    CONNECTION_STATUS_CHOICES = [
+        ("unknown", "Unknown"),
+        ("ok", "Connected"),
+        ("auth_error", "Authentication Error"),
+        ("unreachable", "Unreachable"),
+        ("not_configured", "Not Configured"),
+    ]
+
     last_successful_backup = models.DateTimeField(null=True, blank=True)
     last_backup_error = models.TextField(blank=True)
+
+    connection_status = models.CharField(
+        max_length=20,
+        choices=CONNECTION_STATUS_CHOICES,
+        default="unknown",
+    )
+    connection_error = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

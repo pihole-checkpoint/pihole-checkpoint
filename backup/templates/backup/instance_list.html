@@ -43,14 +43,20 @@
                             <i class="bi bi-hdd-network fs-4 text-primary"></i>
                             <h5 class="card-title mb-0">{{ item.config.name }}</h5>
                         </div>
-                        {% if item.credentials_configured %}
+                        {% if item.config.connection_status == "ok" %}
                             {% if item.config.is_active %}
-                            <span class="badge bg-success">Active</span>
+                            <span class="badge bg-success">Connected</span>
                             {% else %}
                             <span class="badge bg-secondary">Inactive</span>
                             {% endif %}
-                        {% else %}
+                        {% elif item.config.connection_status == "auth_error" %}
+                        <span class="badge bg-danger" title="{{ item.config.connection_error|truncatechars:100 }}">Auth Error</span>
+                        {% elif item.config.connection_status == "unreachable" %}
+                        <span class="badge bg-danger" title="{{ item.config.connection_error|truncatechars:100 }}">Unreachable</span>
+                        {% elif item.config.connection_status == "not_configured" %}
                         <span class="badge bg-warning text-dark">Not Configured</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Unknown</span>
                         {% endif %}
                     </div>
 

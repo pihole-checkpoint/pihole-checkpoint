@@ -5,10 +5,13 @@ import os
 import re
 from pathlib import Path
 
+import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from backup.models import PiholeConfig
+from backup.services.credential_service import CredentialService
+from backup.services.pihole_client import PiholeV6Client
 
 logger = logging.getLogger(__name__)
 
@@ -178,3 +181,44 @@ def discover_instances_from_env(force=False):
             created.append(prefix)
 
     return {"created": created, "skipped": skipped, "updated": updated, "removed": removed}
+
+
+def check_connections():
+    """Test connection to all configured Pi-hole instances and update status.
+
+    Returns:
+        dict mapping env_prefix to connection_status string.
+    """
+    results = {}
+    for config in PiholeConfig.objects.all():
+        if not CredentialService.is_configured(config):
+            config.connection_status = "not_configured"
+            config.connection_error = ""
+            config.save(update_fields=["connection_status", "connection_error"])
+            results[config.env_prefix] = "not_configured"
+            continue
+
+        try:
+            creds = CredentialService.get_credentials(config)
+            with PiholeV6Client(creds["url"], creds["password"], creds["verify_ssl"]) as client:
+                client.test_connection()
+            config.connection_status = "ok"
+            config.connection_error = ""
+            logger.info("Connection OK for %s (%s)", config.name, creds["url"])
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, OSError) as exc:
+            config.connection_status = "unreachable"
+            config.connection_error = str(exc)
+            logger.warning("Unreachable: %s — %s", config.name, exc)
+        except (ValueError, requests.exceptions.HTTPError) as exc:
+            config.connection_status = "auth_error"
+            config.connection_error = str(exc)
+            logger.warning("Auth error: %s — %s", config.name, exc)
+        except Exception as exc:
+            config.connection_status = "unreachable"
+            config.connection_error = str(exc)
+            logger.warning("Connection failed: %s — %s", config.name, exc)
+
+        config.save(update_fields=["connection_status", "connection_error"])
+        results[config.env_prefix] = config.connection_status
+
+    return results

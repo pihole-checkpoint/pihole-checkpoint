@@ -44,14 +44,27 @@
             <div class="card-body">
                 <h5 class="card-title text-muted">Pi-hole Status</h5>
                 <div class="d-flex align-items-center">
-                    {% if config.is_active %}
-                    <span class="badge bg-success status-badge me-2">Active</span>
+                    {% if config.connection_status == "ok" %}
+                        {% if config.is_active %}
+                        <span class="badge bg-success status-badge me-2">Connected</span>
+                        {% else %}
+                        <span class="badge bg-secondary status-badge me-2">Inactive</span>
+                        {% endif %}
+                    {% elif config.connection_status == "auth_error" %}
+                    <span class="badge bg-danger status-badge me-2">Auth Error</span>
+                    {% elif config.connection_status == "unreachable" %}
+                    <span class="badge bg-danger status-badge me-2">Unreachable</span>
+                    {% elif config.connection_status == "not_configured" %}
+                    <span class="badge bg-warning text-dark status-badge me-2">Not Configured</span>
                     {% else %}
-                    <span class="badge bg-secondary status-badge me-2">Inactive</span>
+                    <span class="badge bg-secondary status-badge me-2">Unknown</span>
                     {% endif %}
                     <span>{{ config.name }}</span>
                 </div>
                 <small class="text-muted">{{ credential_status.url|default:"Not configured" }}</small>
+                {% if config.connection_error %}
+                <small class="text-danger d-block mt-1">{{ config.connection_error|truncatechars:100 }}</small>
+                {% endif %}
             </div>
         </div>
     </div>
