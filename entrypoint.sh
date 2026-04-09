@@ -4,8 +4,12 @@ set -e
 echo "=== Pi-hole Checkpoint Starting ==="
 
 # Run migrations
-echo "[1/3] Running database migrations..."
+echo "[1/4] Running database migrations..."
 uv run python manage.py migrate --noinput
+
+# Discover Pi-hole instances from environment variables
+echo "[2/4] Discovering Pi-hole instances..."
+uv run python manage.py discover_instances
 
 # Function to start scheduler
 start_scheduler() {
@@ -15,7 +19,7 @@ start_scheduler() {
 }
 
 # Start scheduler
-echo "[2/3] Starting backup scheduler..."
+echo "[3/4] Starting backup scheduler..."
 start_scheduler
 
 # Monitor and restart scheduler if it dies (with exponential backoff)
@@ -63,7 +67,7 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # Start Gunicorn (background, so trap can fire)
-echo "[3/3] Starting web server..."
+echo "[4/4] Starting web server..."
 uv run gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \

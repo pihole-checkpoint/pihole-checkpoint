@@ -15,6 +15,38 @@ from backup.services.retention_service import RetentionService
 from backup.tests.factories import PiholeConfigFactory
 
 
+def _mock_pihole_client(sample_backup_data=None, side_effect=None):
+    """Context manager that mocks PiholeV6Client and CredentialService together."""
+    mock_creds = {
+        "url": "https://test.local",
+        "password": "testpass",
+        "verify_ssl": False,
+    }
+    client_patch = patch("backup.services.backup_service.PiholeV6Client")
+    creds_patch = patch(
+        "backup.services.backup_service.CredentialService.get_credentials",
+        return_value=mock_creds,
+    )
+
+    class _Combined:
+        def __enter__(self):
+            self.mock_client_class = client_patch.__enter__()
+            creds_patch.__enter__()
+            mock_client = MagicMock()
+            if side_effect:
+                mock_client.download_teleporter_backup.side_effect = side_effect
+            elif sample_backup_data is not None:
+                mock_client.download_teleporter_backup.return_value = sample_backup_data
+            self.mock_client_class.return_value = mock_client
+            return self.mock_client_class
+
+        def __exit__(self, *args):
+            creds_patch.__exit__(*args)
+            client_patch.__exit__(*args)
+
+    return _Combined()
+
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestCompleteBackupWorkflow:
@@ -61,11 +93,7 @@ class TestCompleteBackupWorkflow:
         """Test backup creation followed by retention cleanup."""
         config = PiholeConfigFactory(max_backups=2, max_age_days=0)
 
-        with patch("backup.services.backup_service.PiholeV6Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.download_teleporter_backup.return_value = sample_backup_data
-            mock_client_class.return_value = mock_client
-
+        with _mock_pihole_client(sample_backup_data):
             # Create 5 backups with different timestamps to get unique filenames
             backup_service = BackupService(config)
             start_time = datetime(2024, 1, 15, 10, 0, 0)
@@ -162,11 +190,7 @@ class TestMultiConfigWorkflow:
         config1 = PiholeConfigFactory(name="Config 1", max_backups=2)
         config2 = PiholeConfigFactory(name="Config 2", max_backups=3)
 
-        with patch("backup.services.backup_service.PiholeV6Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.download_teleporter_backup.return_value = sample_backup_data
-            mock_client_class.return_value = mock_client
-
+        with _mock_pihole_client(sample_backup_data):
             # Create 5 backups for config1
             service1 = BackupService(config1)
             for _ in range(5):
@@ -194,22 +218,14 @@ class TestMultiConfigWorkflow:
         config2 = PiholeConfigFactory(name="Broken")
 
         # Config1 succeeds
-        with patch("backup.services.backup_service.PiholeV6Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.download_teleporter_backup.return_value = sample_backup_data
-            mock_client_class.return_value = mock_client
-
+        with _mock_pihole_client(sample_backup_data):
             service1 = BackupService(config1)
             record1 = service1.create_backup()
 
         assert record1.status == "success"
 
         # Config2 fails
-        with patch("backup.services.backup_service.PiholeV6Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.download_teleporter_backup.side_effect = ConnectionError()
-            mock_client_class.return_value = mock_client
-
+        with _mock_pihole_client(side_effect=ConnectionError()):
             service2 = BackupService(config2)
 
             with pytest.raises(ConnectionError):
@@ -231,11 +247,7 @@ class TestRetentionEdgeCases:
         """Test retention handles mixed success and failed backups correctly."""
         config = PiholeConfigFactory(max_backups=2, max_age_days=0)
 
-        with patch("backup.services.backup_service.PiholeV6Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.download_teleporter_backup.return_value = sample_backup_data
-            mock_client_class.return_value = mock_client
-
+        with _mock_pihole_client(sample_backup_data):
             service = BackupService(config)
 
             # Create 3 successful backups

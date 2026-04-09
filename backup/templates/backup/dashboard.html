@@ -1,15 +1,25 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Dashboard - Pi-hole Checkpoint{% endblock %}
+{% block title %}{{ config.name }} - Pi-hole Checkpoint{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item active">{{ config.name }}</li>
+    </ol>
+</nav>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
-    {% if config %}
-    <button class="btn btn-primary" id="backupNowBtn" onclick="createBackup()">
-        <i class="bi bi-cloud-download"></i> Backup Now
-    </button>
-    {% endif %}
+    <h1><i class="bi bi-speedometer2"></i> {{ config.name }}</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'instance_settings' config.pk %}" class="btn btn-outline-secondary">
+            <i class="bi bi-gear"></i> Settings
+        </a>
+        <button class="btn btn-primary" id="backupNowBtn" onclick="createBackup()">
+            <i class="bi bi-cloud-download"></i> Backup Now
+        </button>
+    </div>
 </div>
 
 {% csrf_token %}
@@ -17,12 +27,7 @@
 {% if not credentials_configured %}
 <div class="alert alert-warning">
     <i class="bi bi-exclamation-triangle"></i>
-    No Pi-hole configured yet. Set <code>PIHOLE_URL</code> and <code>PIHOLE_PASSWORD</code> environment variables to get started.
-</div>
-{% elif not config %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Pi-hole credentials configured. <a href="{% url 'settings' %}">Configure backup schedule</a> to start automatic backups.
+    Credentials not configured. Set <code>PIHOLE_{{ config.env_prefix }}_URL</code> and <code>PIHOLE_{{ config.env_prefix }}_PASSWORD</code> environment variables.
 </div>
 {% else %}
 
@@ -131,7 +136,7 @@
                                     title="Restore this backup to Pi-hole">
                                 <i class="bi bi-arrow-counterclockwise"></i>
                             </button>
-                            <a href="{% url 'download_backup' backup.id %}" class="btn btn-sm btn-outline-primary" title="Download">
+                            <a href="{% url 'download_backup' config.pk backup.id %}" class="btn btn-sm btn-outline-primary" title="Download">
                                 <i class="bi bi-download"></i>
                             </a>
                             {% endif %}
@@ -158,6 +163,8 @@
 
 {% block extra_js %}
 <script>
+const INSTANCE_PK = {{ config.pk }};
+
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -199,7 +206,6 @@ function updateLastBackupCard(displayTime) {
 function addBackupToTable(backup) {
     const tbody = document.querySelector('.backup-table tbody');
     if (!tbody) {
-        // No table exists yet (first backup), reload to show the table
         location.reload();
         return;
     }
@@ -222,7 +228,7 @@ function addBackupToTable(backup) {
         : '';
 
     const downloadBtn = backup.status === 'success'
-        ? `<a href="/backup/${backup.id}/download/" class="btn btn-sm btn-outline-primary" title="Download"><i class="bi bi-download"></i></a>`
+        ? `<a href="/instances/${INSTANCE_PK}/backup/${backup.id}/download/" class="btn btn-sm btn-outline-primary" title="Download"><i class="bi bi-download"></i></a>`
         : '';
 
     row.innerHTML = `
@@ -245,7 +251,6 @@ function addBackupToTable(backup) {
 
     tbody.insertBefore(row, tbody.firstChild);
 
-    // Trigger fade-in animation
     requestAnimationFrame(() => {
         row.style.opacity = '1';
     });
@@ -264,7 +269,7 @@ async function createBackup() {
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
-        const response = await fetch('{% url "create_backup" %}', {
+        const response = await fetch(`/instances/${INSTANCE_PK}/api/backup/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
@@ -298,7 +303,7 @@ async function deleteBackup(id) {
     if (!confirm('Are you sure you want to delete this backup?')) return;
 
     try {
-        const response = await fetch(`/backup/${id}/delete/`, {
+        const response = await fetch(`/instances/${INSTANCE_PK}/backup/${id}/delete/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
@@ -332,7 +337,7 @@ async function restoreBackup(btn) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
     try {
-        const response = await fetch(`/api/restore/${backupId}/`, {
+        const response = await fetch(`/instances/${INSTANCE_PK}/api/restore/${backupId}/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
@@ -353,7 +358,6 @@ async function restoreBackup(btn) {
     }
 }
 
-// Event delegation for restore buttons
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('.restore-btn');
     if (btn) {

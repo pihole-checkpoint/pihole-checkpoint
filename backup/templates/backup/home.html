@@ -1,0 +1,106 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Pi-hole Checkpoint{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-house"></i> Instances</h1>
+</div>
+
+{% if configs_with_status %}
+<div class="row g-4">
+    {% for item in configs_with_status %}
+    <div class="col-sm-6 col-lg-4">
+        <a href="{% url 'instance_dashboard' item.config.pk %}" class="text-decoration-none">
+            <div class="card h-100 instance-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title mb-0">{{ item.config.name }}</h5>
+                        <div>
+                            {% if item.config.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if not item.credentials_configured %}
+                    <div class="mb-3">
+                        <span class="text-danger small"><i class="bi bi-exclamation-circle"></i> Credentials not configured</span>
+                    </div>
+                    {% endif %}
+
+                    {% if item.config.last_backup_error %}
+                    <div class="mb-3">
+                        <span class="text-danger small"><i class="bi bi-x-circle"></i> Last backup failed</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="row text-center mt-auto">
+                        <div class="col-4">
+                            <div class="text-muted small">Backups</div>
+                            <div class="fw-bold">{{ item.config.backup_count }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Last Backup</div>
+                            <div class="fw-bold small">
+                                {% if item.config.last_successful_backup %}
+                                {{ item.config.last_successful_backup|timesince }} ago
+                                {% else %}
+                                Never
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Storage</div>
+                            <div class="fw-bold">{{ item.config.total_size|default:0|filesizeformat }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted small">
+                    <i class="bi bi-clock"></i> {{ item.config.get_backup_frequency_display }}
+                    {% if item.config.backup_frequency == 'daily' or item.config.backup_frequency == 'weekly' %}
+                    at {{ item.config.backup_time|time:"H:i" }}
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-hdd-network display-1 text-muted"></i>
+    <h3 class="mt-3 text-muted">No Pi-hole instances configured</h3>
+    <p class="text-muted">
+        Add instances by setting environment variables in your <code>.env</code> file:
+    </p>
+    <div class="card d-inline-block text-start">
+        <div class="card-body">
+            <pre class="mb-0"><code>PIHOLE_PRIMARY_URL=https://192.168.1.100
+PIHOLE_PRIMARY_PASSWORD=your-password
+
+PIHOLE_SECONDARY_URL=https://192.168.1.101
+PIHOLE_SECONDARY_PASSWORD=another-password</code></pre>
+        </div>
+    </div>
+    <p class="text-muted mt-3">
+        Instances are auto-discovered on container startup.
+    </p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .instance-card {
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+        cursor: pointer;
+    }
+    .instance-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}

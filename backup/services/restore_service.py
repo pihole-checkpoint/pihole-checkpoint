@@ -22,7 +22,7 @@ class RestoreService:
 
     def _get_client(self) -> PiholeV6Client:
         """Create a Pi-hole client using environment credentials."""
-        creds = CredentialService.get_credentials()
+        creds = CredentialService.get_credentials(self.config.env_prefix)
         return PiholeV6Client(
             base_url=creds["url"],
             password=creds["password"],

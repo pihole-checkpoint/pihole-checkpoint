@@ -4,13 +4,11 @@ from django.db import models
 class PiholeConfig(models.Model):
     """Configuration for a Pi-hole instance.
 
-    Note: Pi-hole credentials (URL, password, verify_ssl) are now read from
-    environment variables. See CredentialService for details.
+    Credentials (URL, password, verify_ssl) are read from environment variables
+    using the env_prefix field. For example, a config with env_prefix="PRIMARY"
+    reads PIHOLE_PRIMARY_URL, PIHOLE_PRIMARY_PASSWORD, etc.
 
-    Known Limitation: While this model supports multiple configurations, the
-    current UI (dashboard and settings views) only displays a single instance
-    using .first(). Multi-instance support is a potential future enhancement.
-    See ADR-0013, Issue 7 for details.
+    Instances are auto-discovered on startup via the discover_instances command.
     """
 
     FREQUENCY_CHOICES = [
@@ -29,6 +27,12 @@ class PiholeConfig(models.Model):
         (6, "Sunday"),
     ]
 
+    env_prefix = models.CharField(
+        max_length=50,
+        unique=True,
+        default="PRIMARY",
+        help_text="Environment variable prefix for credentials (e.g., PRIMARY → PIHOLE_PRIMARY_URL)",
+    )
     name = models.CharField(max_length=100, default="Primary Pi-hole")
 
     backup_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="daily")

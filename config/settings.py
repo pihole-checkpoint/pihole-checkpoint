@@ -141,11 +141,6 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Pi-hole credentials (from environment)
-PIHOLE_URL = os.environ.get("PIHOLE_URL", "")
-PIHOLE_PASSWORD = os.environ.get("PIHOLE_PASSWORD", "")
-PIHOLE_VERIFY_SSL = os.environ.get("PIHOLE_VERIFY_SSL", "false").lower() == "true"
-
 # Backup storage path
 BACKUP_DIR = BASE_DIR / "backups"
 

@@ -298,7 +298,7 @@ class TestBackupServiceGetBackupFile:
 class TestBackupServiceGetClient:
     """Tests for BackupService._get_client()."""
 
-    def test_get_client_creates_pihole_client_with_env_credentials(self, pihole_config, temp_backup_dir, settings):
+    def test_get_client_creates_pihole_client_with_env_credentials(self, pihole_config, temp_backup_dir):
         """_get_client should create PiholeV6Client with environment credentials."""
         service = BackupService(pihole_config)
 
@@ -306,9 +306,9 @@ class TestBackupServiceGetClient:
             service._get_client()
 
             mock_client_class.assert_called_once_with(
-                base_url=settings.PIHOLE_URL,
-                password=settings.PIHOLE_PASSWORD,
-                verify_ssl=settings.PIHOLE_VERIFY_SSL,
+                base_url="https://pihole.local",
+                password="testpassword123",
+                verify_ssl=False,
             )
 
 

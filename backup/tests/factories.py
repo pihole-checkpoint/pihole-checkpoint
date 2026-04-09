@@ -17,6 +17,7 @@ class PiholeConfigFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = PiholeConfig
 
+    env_prefix = factory.Sequence(lambda n: f"INSTANCE{n}")
     name = factory.Sequence(lambda n: f"Pi-hole {n}")
     backup_frequency = "daily"
     backup_time = time(3, 0)

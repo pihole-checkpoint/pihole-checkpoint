@@ -10,12 +10,13 @@ class BackupConfig(AppConfig):
 
     def ready(self):
         """Check for required configuration on startup."""
-        from django.conf import settings
+        from .services.credential_service import CredentialService
 
         logger = logging.getLogger(__name__)
 
-        if not settings.PIHOLE_URL or not settings.PIHOLE_PASSWORD:
+        prefixes = CredentialService.discover_prefixes()
+        if not prefixes:
             logger.warning(
-                "Pi-hole credentials not configured. "
-                "Set PIHOLE_URL and PIHOLE_PASSWORD environment variables to enable backups."
+                "No Pi-hole instances configured. "
+                "Set PIHOLE_{PREFIX}_URL and PIHOLE_{PREFIX}_PASSWORD environment variables to enable backups."
             )

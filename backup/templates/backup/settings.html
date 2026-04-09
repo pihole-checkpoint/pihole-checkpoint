@@ -1,8 +1,16 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Settings - Pi-hole Checkpoint{% endblock %}
+{% block title %}Settings - {{ config.name }} - Pi-hole Checkpoint{% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'instance_dashboard' config.pk %}">{{ config.name }}</a></li>
+        <li class="breadcrumb-item active">Settings</li>
+    </ol>
+</nav>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="bi bi-gear"></i> Settings</h1>
 </div>
@@ -57,7 +65,7 @@
                 </button>
                 {% if not credential_status.url or not credential_status.has_password %}
                 <div class="form-text text-danger mt-2">
-                    Set PIHOLE_URL and PIHOLE_PASSWORD environment variables to enable connection.
+                    Set <code>PIHOLE_{{ config.env_prefix }}_URL</code> and <code>PIHOLE_{{ config.env_prefix }}_PASSWORD</code> environment variables to enable connection.
                 </div>
                 {% endif %}
             </div>
@@ -147,9 +155,9 @@
                 <h6>Environment Variables</h6>
                 <p class="small">Pi-hole connection settings are configured via environment variables in your <code>.env</code> file or Docker Compose:</p>
                 <ul class="small">
-                    <li><code>PIHOLE_URL</code> - Pi-hole URL (e.g., https://192.168.1.100)</li>
-                    <li><code>PIHOLE_PASSWORD</code> - Pi-hole admin password</li>
-                    <li><code>PIHOLE_VERIFY_SSL</code> - Enable SSL verification (default: false)</li>
+                    <li><code>PIHOLE_{{ config.env_prefix }}_URL</code> - Pi-hole URL</li>
+                    <li><code>PIHOLE_{{ config.env_prefix }}_PASSWORD</code> - Pi-hole admin password</li>
+                    <li><code>PIHOLE_{{ config.env_prefix }}_VERIFY_SSL</code> - Enable SSL verification (default: false)</li>
                 </ul>
 
                 <h6>Backup Frequency</h6>
@@ -169,17 +177,15 @@
 
 {% block extra_js %}
 <script>
-/**
- * Test connection to Pi-hole using environment credentials.
- * @param {HTMLButtonElement} btn - The button element that triggered this action
- */
+const INSTANCE_PK = {{ config.pk }};
+
 async function testConnection(btn) {
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing...';
 
     try {
-        const response = await fetch('{% url "test_connection" %}', {
+        const response = await fetch(`/instances/${INSTANCE_PK}/api/test-connection/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
