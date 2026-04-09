@@ -63,7 +63,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name|slice:":9" == 'instance_' %}active{% endif %}" href="{% url 'dashboard' %}">
                             <i class="bi bi-hdd-stack"></i> Instances
                         </a>
                     </li>

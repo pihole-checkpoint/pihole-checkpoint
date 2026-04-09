@@ -14,6 +14,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Re-apply env var values to existing instances (except credentials)",
         )
+        parser.add_argument(
+            "--skip-check",
+            action="store_true",
+            help="Skip connection checks after discovery (faster startup)",
+        )
 
     def handle(self, *args, **options):
         result = discover_instances_from_env(force=options["force"])
@@ -29,6 +34,9 @@ class Command(BaseCommand):
 
         if not any(result.values()):
             self.stdout.write("No PIHOLE_* environment variables found")
+
+        if options["skip_check"]:
+            return
 
         # Check connections for all instances
         statuses = check_connections()
