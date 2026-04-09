@@ -83,7 +83,7 @@ class PiholeConfig(models.Model):
 
             if not url and not password:
                 # Neither prefixed var set — fall back to legacy credentials
-                if legacy_url or legacy_password:
+                if legacy_url and legacy_password:
                     if prefix not in _legacy_fallback_warned:
                         _legacy_fallback_warned.add(prefix)
                         logger.warning(
