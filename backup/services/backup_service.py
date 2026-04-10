@@ -29,7 +29,7 @@ class BackupService:
 
     def _get_client(self) -> PiholeV6Client:
         """Create a Pi-hole client using environment credentials."""
-        creds = CredentialService.get_credentials()
+        creds = CredentialService.get_credentials(self.config)
         return PiholeV6Client(
             base_url=creds["url"],
             password=creds["password"],
@@ -165,15 +165,21 @@ class BackupService:
         """
         logger.info(f"Deleting backup: {record.filename}")
 
-        # Delete file if it exists
+        # Delete file if it exists and is within the backup directory
         if record.file_path:
-            filepath = Path(record.file_path)
-            if filepath.exists():
-                try:
-                    filepath.unlink()
-                except OSError as e:
-                    logger.error(f"Failed to delete file {filepath}: {e}")
-                    return False
+            backup_dir = Path(settings.BACKUP_DIR).resolve()
+            filepath = Path(record.file_path).resolve()
+            try:
+                filepath.relative_to(backup_dir)
+            except ValueError:
+                logger.warning("Skipping file outside backup dir: %s", filepath)
+            else:
+                if filepath.exists():
+                    try:
+                        filepath.unlink()
+                    except OSError as e:
+                        logger.error(f"Failed to delete file {filepath}: {e}")
+                        return False
 
         # Delete record
         record.delete()

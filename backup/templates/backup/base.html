@@ -23,6 +23,14 @@
         .status-badge {
             font-size: 0.875rem;
         }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        main {
+            flex: 1;
+        }
         .backup-table .btn {
             padding: 0.25rem 0.5rem;
         }
@@ -55,13 +63,8 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
-                            <i class="bi bi-gear"></i> Settings
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name|slice:":9" == 'instance_' %}active{% endif %}" href="{% url 'dashboard' %}">
+                            <i class="bi bi-hdd-stack"></i> Instances
                         </a>
                     </li>
                 </ul>
@@ -87,6 +90,8 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <main class="container py-4">
+        {% block breadcrumb %}{% endblock %}
+
         {% if messages %}
         {% for message in messages %}
         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -100,7 +105,7 @@
     </main>
 
     <footer class="container py-3 text-center text-muted">
-        <small>Pi-hole Checkpoint &copy; 2024</small>
+        <small class="text-muted"><a href="https://github.com/pihole-checkpoint/pihole-checkpoint" class="text-muted text-decoration-none">Pi-hole Checkpoint</a> v{{ app_version }}{% if git_commit %} ({{ git_commit }}){% endif %}{% if build_date %} &middot; built {{ build_date }}{% endif %}</small>
     </footer>
 
     <script src="{% static 'backup/js/bootstrap.bundle.min.js' %}"></script>

@@ -3,7 +3,7 @@
 import pytest
 from django.urls import reverse
 
-from backup.tests.factories import BackupRecordFactory
+from backup.tests.factories import BackupRecordFactory, PiholeConfigFactory
 
 
 @pytest.mark.django_db
@@ -16,15 +16,35 @@ class TestDashboardView:
         response = client.get(url)
         assert response.status_code == 200
 
-    def test_shows_no_config_message_when_empty(self, client, auth_disabled_settings):
-        """Dashboard should show no-config message when no config exists."""
+    def test_shows_instance_list_when_no_config(self, client, auth_disabled_settings):
+        """Dashboard should show instance list when no config exists."""
         url = reverse("dashboard")
         response = client.get(url)
 
         assert response.status_code == 200
-        content = response.content.decode()
-        # Check for indication that no config exists
-        assert "config" in content.lower() or "settings" in content.lower()
+        templates_used = [t.name for t in response.templates]
+        assert "backup/instance_list.html" in templates_used
+
+    def test_shows_dashboard_when_single_config(self, client, pihole_config, auth_disabled_settings):
+        """Dashboard should show full dashboard when single config exists."""
+        url = reverse("dashboard")
+        response = client.get(url)
+
+        assert response.status_code == 200
+        templates_used = [t.name for t in response.templates]
+        assert "backup/instance_dashboard.html" in templates_used
+        assert response.context["single_instance"] is True
+
+    def test_shows_instance_list_when_multiple_configs(self, client, pihole_config, auth_disabled_settings):
+        """Dashboard should show instance list when 2+ configs exist."""
+        PiholeConfigFactory(name="Secondary", env_prefix="SECONDARY")
+
+        url = reverse("dashboard")
+        response = client.get(url)
+
+        assert response.status_code == 200
+        templates_used = [t.name for t in response.templates]
+        assert "backup/instance_list.html" in templates_used
 
     def test_shows_config_when_exists(self, client, pihole_config, auth_disabled_settings):
         """Dashboard should show config info when config exists."""
@@ -70,14 +90,14 @@ class TestDashboardView:
 
         assert response.status_code == 200
 
-    def test_uses_correct_template(self, client, auth_disabled_settings):
-        """Dashboard should use dashboard.html template."""
+    def test_uses_instance_dashboard_template(self, client, pihole_config, auth_disabled_settings):
+        """Dashboard should use instance_dashboard.html template for single config."""
         url = reverse("dashboard")
         response = client.get(url)
 
         assert response.status_code == 200
         templates_used = [t.name for t in response.templates]
-        assert "backup/dashboard.html" in templates_used
+        assert "backup/instance_dashboard.html" in templates_used
 
     def test_context_contains_config(self, client, pihole_config, auth_disabled_settings):
         """Dashboard context should contain config."""
@@ -100,10 +120,73 @@ class TestDashboardView:
         assert "backups" in response.context
         assert response.context["backups"].count() == 1
 
-    def test_backups_empty_when_no_config(self, client, auth_disabled_settings):
-        """Backups queryset should be empty when no config exists."""
+    def test_empty_instance_list_when_no_config(self, client, auth_disabled_settings):
+        """Instance list should be empty when no config exists."""
         url = reverse("dashboard")
         response = client.get(url)
 
-        assert "backups" in response.context
-        assert response.context["backups"].count() == 0
+        assert "config_data" in response.context
+        assert len(response.context["config_data"]) == 0
+
+    def test_instance_list_includes_backup_stats(self, client, pihole_config, temp_backup_dir, auth_disabled_settings):
+        """Instance list cards should include backup_count and total_size."""
+        PiholeConfigFactory(name="Secondary", env_prefix="SECONDARY")
+
+        # Create backups for the first config
+        for i in range(2):
+            filepath = temp_backup_dir / f"backup_{i}.zip"
+            filepath.write_bytes(b"test")
+            BackupRecordFactory(
+                config=pihole_config,
+                filename=f"backup_{i}.zip",
+                file_path=str(filepath),
+                file_size=1024,
+            )
+
+        url = reverse("dashboard")
+        response = client.get(url)
+
+        assert response.status_code == 200
+        config_data = response.context["config_data"]
+        assert len(config_data) == 2
+
+        # First config should have backup stats
+        primary_data = next(d for d in config_data if d["config"] == pihole_config)
+        assert primary_data["backup_count"] == 2
+        assert primary_data["total_size"] == 2048
+
+        # Second config should have zero stats
+        secondary_data = next(d for d in config_data if d["config"] != pihole_config)
+        assert secondary_data["backup_count"] == 0
+        assert secondary_data["total_size"] == 0
+
+
+@pytest.mark.django_db
+class TestInstanceDashboardView:
+    """Tests for the instance_dashboard view."""
+
+    def test_returns_200(self, client, pihole_config, auth_disabled_settings):
+        """Instance dashboard should return 200."""
+        url = reverse("instance_dashboard", args=[pihole_config.id])
+        response = client.get(url)
+        assert response.status_code == 200
+
+    def test_returns_404_for_nonexistent(self, client, auth_disabled_settings):
+        """Instance dashboard should return 404 for nonexistent config."""
+        url = reverse("instance_dashboard", args=[99999])
+        response = client.get(url)
+        assert response.status_code == 404
+
+    def test_context_has_single_instance_false(self, client, pihole_config, auth_disabled_settings):
+        """Instance dashboard should set single_instance=False."""
+        url = reverse("instance_dashboard", args=[pihole_config.id])
+        response = client.get(url)
+        assert response.context["single_instance"] is False
+
+    def test_shows_breadcrumb(self, client, pihole_config, auth_disabled_settings):
+        """Instance dashboard should show breadcrumb navigation."""
+        url = reverse("instance_dashboard", args=[pihole_config.id])
+        response = client.get(url)
+        content = response.content.decode()
+        assert "Instances" in content
+        assert pihole_config.name in content

@@ -3,11 +3,13 @@ import os
 
 from django.conf import settings
 from django.contrib import messages
+from django.db import models
+from django.db.models import Count, Sum
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import LoginForm, PiholeConfigForm
+from .forms import LoginForm
 from .models import BackupRecord, PiholeConfig
 from .services.backup_service import BackupService
 from .services.credential_service import CredentialService
@@ -19,64 +21,110 @@ logger = logging.getLogger(__name__)
 
 
 def dashboard(request):
-    """Main dashboard view showing backup status and history.
+    """Main dashboard view with smart routing based on config count.
 
-    Note: The UI currently supports only a single Pi-hole configuration.
-    While the PiholeConfig model can store multiple instances, the dashboard
-    uses .first() to display only one. Multi-instance UI support is a
-    potential future enhancement (see ADR-0013, Issue 7).
+    - 0 configs: show instance list with add prompt
+    - 1 config: show full dashboard directly (backward compat)
+    - 2+ configs: show instance card grid
     """
-    config = PiholeConfig.objects.first()
-    backups = BackupRecord.objects.filter(config=config) if config else BackupRecord.objects.none()
+    configs = PiholeConfig.objects.all()
+    count = configs.count()
 
-    # Get Pi-hole credential status from environment
-    credential_status = CredentialService.get_status()
-    credentials_configured = CredentialService.is_configured()
+    if count == 1:
+        config = configs.first()
+        backups = BackupRecord.objects.filter(config=config)
+        credential_status = CredentialService.get_status(config)
+        credentials_configured = CredentialService.is_configured(config)
+        return render(
+            request,
+            "backup/instance_dashboard.html",
+            {
+                "config": config,
+                "backups": backups,
+                "credential_status": credential_status,
+                "credentials_configured": credentials_configured,
+                "single_instance": True,
+            },
+        )
+
+    # 0 or 2+ configs: show instance list with backup stats
+    configs_annotated = configs.annotate(
+        backup_count=Count("backups", filter=models.Q(backups__status="success")),
+        total_size=Sum("backups__file_size", filter=models.Q(backups__status="success"), default=0),
+    )
+    config_data = []
+    for config in configs_annotated:
+        config_data.append(
+            {
+                "config": config,
+                "credential_status": CredentialService.get_status(config),
+                "credentials_configured": CredentialService.is_configured(config),
+                "backup_count": config.backup_count,
+                "total_size": config.total_size,
+            }
+        )
+    return render(
+        request,
+        "backup/instance_list.html",
+        {
+            "configs": configs,
+            "config_data": config_data,
+        },
+    )
+
+
+def instance_dashboard(request, config_id):
+    """Per-instance dashboard showing backup status and history."""
+    config = get_object_or_404(PiholeConfig, id=config_id)
+    backups = BackupRecord.objects.filter(config=config)
+    credential_status = CredentialService.get_status(config)
+    credentials_configured = CredentialService.is_configured(config)
 
     return render(
         request,
-        "backup/dashboard.html",
+        "backup/instance_dashboard.html",
         {
             "config": config,
             "backups": backups,
             "credential_status": credential_status,
             "credentials_configured": credentials_configured,
+            "single_instance": False,
         },
     )
 
 
-def settings_view(request):
-    """Settings view for configuring backup schedule."""
-    config = PiholeConfig.objects.first()
-
-    if request.method == "POST":
-        form = PiholeConfigForm(request.POST, instance=config)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Settings saved successfully!")
-            return redirect("settings")
-    else:
-        form = PiholeConfigForm(instance=config)
-
-    # Get Pi-hole credential status from environment
-    credential_status = CredentialService.get_status()
+def instance_settings(request, config_id):
+    """Per-instance settings view (read-only)."""
+    config = get_object_or_404(PiholeConfig, id=config_id)
+    credential_status = CredentialService.get_status(config)
 
     return render(
         request,
         "backup/settings.html",
         {
-            "form": form,
             "config": config,
             "credential_status": credential_status,
         },
     )
 
 
+def settings_redirect(request):
+    """Legacy /settings/ redirect to instance settings."""
+    config = PiholeConfig.objects.first()
+    if config:
+        return redirect("instance_settings", config_id=config.id)
+    return redirect("dashboard")
+
+
 @require_POST
-def test_connection(request):
+def test_connection(request, config_id):
     """AJAX endpoint to test Pi-hole connection using environment credentials."""
+    config = PiholeConfig.objects.filter(id=config_id).first()
+    if config is None:
+        return JsonResponse({"success": False, "error": "Configuration not found."}, status=404)
+
     try:
-        creds = CredentialService.get_credentials()
+        creds = CredentialService.get_credentials(config)
 
         client = PiholeV6Client(
             base_url=creds["url"],
@@ -102,12 +150,11 @@ def test_connection(request):
 
 
 @require_POST
-def create_backup(request):
+def create_backup(request, config_id):
     """AJAX endpoint to create a manual backup."""
-    config = PiholeConfig.objects.first()
-
-    if not config:
-        return JsonResponse({"success": False, "error": "No Pi-hole configured"})
+    config = PiholeConfig.objects.filter(id=config_id).first()
+    if config is None:
+        return JsonResponse({"success": False, "error": "Configuration not found."}, status=404)
 
     try:
         service = BackupService(config)
@@ -134,23 +181,8 @@ def create_backup(request):
 @require_POST
 def delete_backup(request, backup_id):
     """AJAX endpoint to delete a backup."""
-    from pathlib import Path
-
     record = get_object_or_404(BackupRecord, id=backup_id)
     config = record.config
-
-    # Handle orphaned backup records (config was deleted)
-    if not config:
-        logger.warning(f"Deleting orphaned backup record: {record.filename}")
-        if record.file_path:
-            filepath = Path(record.file_path)
-            if filepath.exists():
-                try:
-                    filepath.unlink()
-                except OSError as e:
-                    logger.error(f"Failed to delete orphaned file: {e}")
-        record.delete()
-        return JsonResponse({"success": True})
 
     try:
         service = BackupService(config)

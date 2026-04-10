@@ -1,6 +1,17 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Dashboard - Pi-hole Checkpoint{% endblock %}
+{% block title %}{{ config.name }} - Pi-hole Checkpoint{% endblock %}
+
+{% block breadcrumb %}
+{% if not single_instance %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Instances</a></li>
+        <li class="breadcrumb-item active">{{ config.name }}</li>
+    </ol>
+</nav>
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -17,14 +28,23 @@
 {% if not credentials_configured %}
 <div class="alert alert-warning">
     <i class="bi bi-exclamation-triangle"></i>
-    No Pi-hole configured yet. Set <code>PIHOLE_URL</code> and <code>PIHOLE_PASSWORD</code> environment variables to get started.
+    No Pi-hole credentials found. Set <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> and <code>PIHOLE_{{ config.env_prefix|upper }}_PASSWORD</code> environment variables.
 </div>
 {% elif not config %}
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    Pi-hole credentials configured. <a href="{% url 'settings' %}">Configure backup schedule</a> to start automatic backups.
+    No instance configured. Set <code>PIHOLE_{PREFIX}_URL</code> and <code>PIHOLE_{PREFIX}_PASSWORD</code> environment variables and restart.
 </div>
 {% else %}
+
+{% if config.connection_status == "removed" %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Orphaned instance.</strong> The <code>PIHOLE_{{ config.env_prefix|upper }}_URL</code> environment variable is no longer set.
+    This instance's backups are retained below. To re-activate, restore the env var and restart.
+    To clean up, delete individual backups or remove all backups and the instance will be purged on next restart.
+</div>
+{% endif %}
 
 <!-- Status Cards -->
 <div class="row mb-4">
@@ -33,14 +53,13 @@
             <div class="card-body">
                 <h5 class="card-title text-muted">Pi-hole Status</h5>
                 <div class="d-flex align-items-center">
-                    {% if config.is_active %}
-                    <span class="badge bg-success status-badge me-2">Active</span>
-                    {% else %}
-                    <span class="badge bg-secondary status-badge me-2">Inactive</span>
-                    {% endif %}
+                    {% include "backup/_connection_badge.html" with config=config badge_class="status-badge me-2" %}
                     <span>{{ config.name }}</span>
                 </div>
                 <small class="text-muted">{{ credential_status.url|default:"Not configured" }}</small>
+                {% if config.connection_error %}
+                <small class="text-danger d-block mt-1">{{ config.connection_error|truncatechars:100 }}</small>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -158,6 +177,13 @@
 
 {% block extra_js %}
 <script>
+const URLS = {
+    deleteBackup: (id) => `{% url 'delete_backup' 0 %}`.replace('/0/', `/${id}/`),
+    downloadBackup: (id) => `{% url 'download_backup' 0 %}`.replace('/0/', `/${id}/`),
+    restoreBackup: (id) => `{% url 'restore_backup' 0 %}`.replace('/0/', `/${id}/`),
+};
+</script>
+<script>
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -222,7 +248,7 @@ function addBackupToTable(backup) {
         : '';
 
     const downloadBtn = backup.status === 'success'
-        ? `<a href="/backup/${backup.id}/download/" class="btn btn-sm btn-outline-primary" title="Download"><i class="bi bi-download"></i></a>`
+        ? `<a href="${URLS.downloadBackup(backup.id)}" class="btn btn-sm btn-outline-primary" title="Download"><i class="bi bi-download"></i></a>`
         : '';
 
     row.innerHTML = `
@@ -264,7 +290,7 @@ async function createBackup() {
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
-        const response = await fetch('{% url "create_backup" %}', {
+        const response = await fetch('{% url "create_backup" config.id %}', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
@@ -298,7 +324,7 @@ async function deleteBackup(id) {
     if (!confirm('Are you sure you want to delete this backup?')) return;
 
     try {
-        const response = await fetch(`/backup/${id}/delete/`, {
+        const response = await fetch(URLS.deleteBackup(id), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
@@ -332,7 +358,7 @@ async function restoreBackup(btn) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
     try {
-        const response = await fetch(`/api/restore/${backupId}/`, {
+        const response = await fetch(URLS.restoreBackup(backupId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken(),

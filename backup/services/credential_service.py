@@ -1,15 +1,20 @@
 """Service for retrieving Pi-hole credentials from environment."""
 
-from django.conf import settings
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backup.models import PiholeConfig
 
 
 class CredentialService:
     """Service for retrieving Pi-hole credentials."""
 
     @staticmethod
-    def get_credentials() -> dict:
+    def get_credentials(config: PiholeConfig) -> dict:
         """
-        Get Pi-hole credentials from environment.
+        Get Pi-hole credentials for a specific config instance.
 
         Returns:
             dict with keys: url, password, verify_ssl
@@ -17,35 +22,34 @@ class CredentialService:
         Raises:
             ValueError if required credentials are missing
         """
-        url = settings.PIHOLE_URL
-        password = settings.PIHOLE_PASSWORD
+        creds = config.get_pihole_credentials()
+        prefix = config.env_prefix.upper()
 
-        if not url:
-            raise ValueError("PIHOLE_URL environment variable is required")
-        if not password:
-            raise ValueError("PIHOLE_PASSWORD environment variable is required")
+        if not creds["url"]:
+            raise ValueError(f"PIHOLE_{prefix}_URL environment variable is required")
 
-        return {
-            "url": url,
-            "password": password,
-            "verify_ssl": settings.PIHOLE_VERIFY_SSL,
-        }
+        if not creds["password"]:
+            raise ValueError(f"PIHOLE_{prefix}_PASSWORD environment variable is required")
+
+        return creds
 
     @staticmethod
-    def is_configured() -> bool:
-        """Check if Pi-hole credentials are configured."""
-        return bool(settings.PIHOLE_URL and settings.PIHOLE_PASSWORD)
+    def is_configured(config: PiholeConfig) -> bool:
+        """Check if Pi-hole credentials are configured for this instance."""
+        return config.is_credentials_configured()
 
     @staticmethod
-    def get_status() -> dict:
+    def get_status(config: PiholeConfig) -> dict:
         """
         Get the configuration status for display in UI.
 
         Returns:
-            dict with url, has_password, verify_ssl
+            dict with url, has_password, verify_ssl, env_prefix
         """
+        creds = config.get_pihole_credentials()
         return {
-            "url": settings.PIHOLE_URL or None,
-            "has_password": bool(settings.PIHOLE_PASSWORD),
-            "verify_ssl": settings.PIHOLE_VERIFY_SSL,
+            "url": creds["url"] or None,
+            "has_password": bool(creds["password"]),
+            "verify_ssl": creds["verify_ssl"],
+            "env_prefix": config.env_prefix,
         }
