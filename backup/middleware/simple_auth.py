@@ -10,7 +10,7 @@ class SimpleAuthMiddleware:
     Middleware for optional password-based authentication.
 
     Enabled via REQUIRE_AUTH=true environment variable.
-    Uses APP_PASSWORD for the password.
+    Uses APP_PASSWORD_HASH (hashed at startup from APP_PASSWORD env var).
     """
 
     def __init__(self, get_response):
@@ -22,7 +22,7 @@ class SimpleAuthMiddleware:
             return self.get_response(request)
 
         # Skip if no password is configured
-        if not settings.APP_PASSWORD:
+        if not settings.APP_PASSWORD_HASH:
             return self.get_response(request)
 
         # Allow login, logout, and health check URLs

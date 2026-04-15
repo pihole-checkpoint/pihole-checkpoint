@@ -166,15 +166,17 @@ def mock_pihole_version_response():
 def auth_disabled_settings(settings):
     """Configure settings with authentication disabled."""
     settings.REQUIRE_AUTH = False
-    settings.APP_PASSWORD = ""
+    settings.APP_PASSWORD_HASH = ""
     return settings
 
 
 @pytest.fixture
 def auth_enabled_settings(settings):
     """Configure settings with authentication enabled."""
+    from django.contrib.auth.hashers import make_password
+
     settings.REQUIRE_AUTH = True
-    settings.APP_PASSWORD = "testpassword"
+    settings.APP_PASSWORD_HASH = make_password("testpassword")
     return settings
 
 
