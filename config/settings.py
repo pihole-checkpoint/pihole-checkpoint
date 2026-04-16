@@ -147,7 +147,21 @@ BACKUP_DIR = BASE_DIR / "backups"
 
 # Simple auth settings
 REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "false").lower() in ("true", "1", "yes")
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+if REQUIRE_AUTH:
+    _APP_PASSWORD_RAW = os.environ.get("APP_PASSWORD", "")
+    if _APP_PASSWORD_RAW:
+        from django.contrib.auth.hashers import make_password
+
+        APP_PASSWORD_HASH = make_password(_APP_PASSWORD_RAW)
+        del _APP_PASSWORD_RAW
+        os.environ.pop("APP_PASSWORD", None)
+    else:
+        APP_PASSWORD_HASH = ""
+else:
+    APP_PASSWORD_HASH = ""
+
+# Sessions expire when browser closes
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # APScheduler settings
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"

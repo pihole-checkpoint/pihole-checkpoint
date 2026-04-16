@@ -3,6 +3,7 @@ import os
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.hashers import check_password
 from django.db import models
 from django.db.models import Count, Sum
 from django.http import FileResponse, JsonResponse
@@ -277,7 +278,7 @@ def login_view(request):
 
         form = LoginForm(request.POST)
         if form.is_valid():
-            if form.cleaned_data["password"] == settings.APP_PASSWORD:
+            if check_password(form.cleaned_data["password"], settings.APP_PASSWORD_HASH):
                 # Clear attempts on success
                 cache.delete(cache_key)
                 request.session["authenticated"] = True
