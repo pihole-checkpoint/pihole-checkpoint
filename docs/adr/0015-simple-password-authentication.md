@@ -1,8 +1,8 @@
 # ADR-0015: Simple Password Authentication
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-04-14
-**Author:** Leonardo Merza
+**Deciders:** Leonardo Merza
 
 ## Context
 

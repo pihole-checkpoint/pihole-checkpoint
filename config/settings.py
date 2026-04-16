@@ -147,13 +147,16 @@ BACKUP_DIR = BASE_DIR / "backups"
 
 # Simple auth settings
 REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "false").lower() in ("true", "1", "yes")
-_APP_PASSWORD_RAW = os.environ.get("APP_PASSWORD", "")
-if _APP_PASSWORD_RAW:
-    from django.contrib.auth.hashers import make_password
+if REQUIRE_AUTH:
+    _APP_PASSWORD_RAW = os.environ.get("APP_PASSWORD", "")
+    if _APP_PASSWORD_RAW:
+        from django.contrib.auth.hashers import make_password
 
-    APP_PASSWORD_HASH = make_password(_APP_PASSWORD_RAW)
-    del _APP_PASSWORD_RAW
-    os.environ.pop("APP_PASSWORD", None)
+        APP_PASSWORD_HASH = make_password(_APP_PASSWORD_RAW)
+        del _APP_PASSWORD_RAW
+        os.environ.pop("APP_PASSWORD", None)
+    else:
+        APP_PASSWORD_HASH = ""
 else:
     APP_PASSWORD_HASH = ""
 
