@@ -153,6 +153,7 @@ if _APP_PASSWORD_RAW:
 
     APP_PASSWORD_HASH = make_password(_APP_PASSWORD_RAW)
     del _APP_PASSWORD_RAW
+    os.environ.pop("APP_PASSWORD", None)
 else:
     APP_PASSWORD_HASH = ""
 
