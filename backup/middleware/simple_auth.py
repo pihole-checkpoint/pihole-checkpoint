@@ -32,7 +32,10 @@ class SimpleAuthMiddleware:
             reverse("metrics"),
         ]
 
-        if any(request.path.startswith(path) for path in allowed_paths):
+        # Prometheus's default metrics_path is /metrics (no trailing slash);
+        # match with or without the slash so scrapers don't get redirected.
+        request_path = request.path if request.path.endswith("/") else request.path + "/"
+        if any(request_path.startswith(path) for path in allowed_paths):
             return self.get_response(request)
 
         # Check if user is authenticated

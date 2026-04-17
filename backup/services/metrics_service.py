@@ -18,7 +18,7 @@ try:
 except PackageNotFoundError:
     _APP_VERSION = "unknown"
 
-CONFIG_LABELS = ("config_id", "config_name")
+CONFIG_LABELS = ("config_id",)
 
 
 def build_registry() -> CollectorRegistry:
@@ -40,6 +40,13 @@ def build_registry() -> CollectorRegistry:
     )
     scheduler_up.set(1 if is_scheduler_running() else 0)
 
+    # config_name is mutable; isolate it on an info gauge so rename doesn't stale-duplicate data series.
+    config_info = Gauge(
+        "pihole_config_info",
+        "Pi-hole config metadata; join on config_id for friendly names.",
+        (*CONFIG_LABELS, "config_name"),
+        registry=registry,
+    )
     config_active = Gauge(
         "pihole_config_active",
         "1 if the Pi-hole configuration has scheduled backups enabled.",
@@ -64,9 +71,9 @@ def build_registry() -> CollectorRegistry:
         CONFIG_LABELS,
         registry=registry,
     )
-    backups_total = Gauge(
-        "pihole_backups_total",
-        "Total number of backup records per config and status.",
+    backup_records = Gauge(
+        "pihole_backup_records",
+        "Current number of backup records per config and status.",
         (*CONFIG_LABELS, "status"),
         registry=registry,
     )
@@ -105,8 +112,9 @@ def build_registry() -> CollectorRegistry:
     latest_any_records = {r.id: r for r in BackupRecord.objects.filter(id__in=list(latest_any.values()))}
 
     for config in PiholeConfig.objects.all():
-        labels = {"config_id": str(config.id), "config_name": config.name}
+        labels = {"config_id": str(config.id)}
 
+        config_info.labels(**labels, config_name=config.name).set(1)
         config_active.labels(**labels).set(1 if config.is_active else 0)
 
         for status in status_choices:
@@ -124,7 +132,7 @@ def build_registry() -> CollectorRegistry:
             last_status.labels(**labels).set(1 if latest.status == "success" else 0)
 
         for status in backup_status_choices:
-            backups_total.labels(**labels, status=status).set(per_config_counts.get((config.id, status), 0))
+            backup_records.labels(**labels, status=status).set(per_config_counts.get((config.id, status), 0))
 
         success_row = per_config_success.get(config.id)
         if success_row:

@@ -144,18 +144,25 @@ adopt Option 3 then. The DB-derived metrics remain valid alongside.
 
 ## Metrics Exposed
 
-All metrics are prefixed `pihole_`. Config-scoped metrics carry labels
-`config_id` and `config_name`.
+All metrics are prefixed `pihole_`. Config-scoped data metrics carry only
+the stable `config_id` label. The friendly `config_name` is exposed on a
+separate info-style gauge (`pihole_config_info`) so renames don't leave
+stale duplicate series on the data metrics; dashboards join on `config_id`.
+
+The gauge name `pihole_backup_records` avoids the `_total` suffix that
+Prometheus/OpenMetrics reserves for monotonic counters, since retention can
+cause the underlying count to decrease.
 
 | Metric | Type | Extra labels | Source |
 |--------|------|--------------|--------|
 | `pihole_info` | gauge | version | build metadata |
 | `pihole_scheduler_up` | gauge | — | `is_scheduler_running()` |
+| `pihole_config_info` | gauge | config_name | `PiholeConfig.name` (info/metadata join target) |
 | `pihole_config_active` | gauge | — | `PiholeConfig.is_active` |
 | `pihole_connection_status` | gauge | status | one-hot over `connection_status` choices |
 | `pihole_backup_last_success_timestamp_seconds` | gauge | — | `PiholeConfig.last_successful_backup` |
 | `pihole_backup_last_status` | gauge | — | most recent `BackupRecord` (1=success, 0=failed, -1=none) |
-| `pihole_backups_total` | gauge | status | `COUNT(BackupRecord)` grouped by status |
+| `pihole_backup_records` | gauge | status | `COUNT(BackupRecord)` grouped by status |
 | `pihole_backup_file_size_bytes` | gauge | — | latest successful `BackupRecord.file_size` |
 | `pihole_backup_total_size_bytes` | gauge | — | `SUM(file_size)` across successful backups |
 

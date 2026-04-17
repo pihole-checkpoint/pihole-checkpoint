@@ -109,7 +109,7 @@ Get notified when backups fail. Configure via environment variables:
 
 ## Metrics
 
-A Prometheus-compatible scrape endpoint is exposed at `/metrics/` (auth-exempt, text exposition format). See [ADR-0016](docs/adr/0016-prometheus-metrics-endpoint.md) for the design.
+A Prometheus-compatible scrape endpoint is exposed at `/metrics/` (auth-exempt, text exposition format). The path also works without the trailing slash for Prometheus's default `metrics_path`. See [ADR-0016](docs/adr/0016-prometheus-metrics-endpoint.md) for the design.
 
 Example scrape config:
 
@@ -124,13 +124,20 @@ Exposed metrics (all prefixed `pihole_`):
 
 - `pihole_info{version}` — build info
 - `pihole_scheduler_up` — `1` when the APScheduler process is running
-- `pihole_config_active{config_id,config_name}` — `1` when scheduled backups are enabled
-- `pihole_connection_status{config_id,config_name,status}` — one-hot connection state
-- `pihole_backup_last_success_timestamp_seconds{config_id,config_name}` — unix timestamp (0 if never)
-- `pihole_backup_last_status{config_id,config_name}` — `1`=success, `0`=failed, `-1`=none yet
-- `pihole_backups_total{config_id,config_name,status}` — count of backup records per status
-- `pihole_backup_file_size_bytes{config_id,config_name}` — size of the latest successful backup
-- `pihole_backup_total_size_bytes{config_id,config_name}` — sum of sizes across successful backups
+- `pihole_config_info{config_id,config_name}` — metadata gauge; join on `config_id` for friendly names
+- `pihole_config_active{config_id}` — `1` when scheduled backups are enabled
+- `pihole_connection_status{config_id,status}` — one-hot connection state
+- `pihole_backup_last_success_timestamp_seconds{config_id}` — unix timestamp (0 if never)
+- `pihole_backup_last_status{config_id}` — `1`=success, `0`=failed, `-1`=none yet
+- `pihole_backup_records{config_id,status}` — current count of backup records per status
+- `pihole_backup_file_size_bytes{config_id}` — size of the latest successful backup
+- `pihole_backup_total_size_bytes{config_id}` — sum of sizes across successful backups
+
+Join the friendly name into dashboards with:
+
+```promql
+pihole_backup_records * on(config_id) group_left(config_name) pihole_config_info
+```
 
 ## Data Storage
 
