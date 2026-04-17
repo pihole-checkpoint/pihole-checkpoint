@@ -25,10 +25,11 @@ class SimpleAuthMiddleware:
         if not settings.APP_PASSWORD_HASH:
             return self.get_response(request)
 
-        # Allow login, logout, and health check URLs
+        # Allow login, logout, health check, and metrics URLs
         allowed_paths = [
             reverse("login"),
             reverse("health_check"),
+            reverse("metrics"),
         ]
 
         if any(request.path.startswith(path) for path in allowed_paths):

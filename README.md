@@ -107,6 +107,31 @@ Get notified when backups fail. Configure via environment variables:
 | `NOTIFY_HOMEASSISTANT_URL` | Home Assistant URL |
 | `NOTIFY_HOMEASSISTANT_WEBHOOK_ID` | Webhook ID (or use `_TOKEN` for API) |
 
+## Metrics
+
+A Prometheus-compatible scrape endpoint is exposed at `/metrics/` (auth-exempt, text exposition format). See [ADR-0016](docs/adr/0016-prometheus-metrics-endpoint.md) for the design.
+
+Example scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: pihole-checkpoint
+    static_configs:
+      - targets: ["pihole-checkpoint:8000"]
+```
+
+Exposed metrics (all prefixed `pihole_`):
+
+- `pihole_info{version}` — build info
+- `pihole_scheduler_up` — `1` when the APScheduler process is running
+- `pihole_config_active{config_id,config_name}` — `1` when scheduled backups are enabled
+- `pihole_connection_status{config_id,config_name,status}` — one-hot connection state
+- `pihole_backup_last_success_timestamp_seconds{config_id,config_name}` — unix timestamp (0 if never)
+- `pihole_backup_last_status{config_id,config_name}` — `1`=success, `0`=failed, `-1`=none yet
+- `pihole_backups_total{config_id,config_name,status}` — count of backup records per status
+- `pihole_backup_file_size_bytes{config_id,config_name}` — size of the latest successful backup
+- `pihole_backup_total_size_bytes{config_id,config_name}` — sum of sizes across successful backups
+
 ## Data Storage
 
 Backups and the database are stored in mounted volumes:
