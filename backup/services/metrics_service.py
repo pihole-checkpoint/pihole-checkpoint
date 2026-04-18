@@ -7,7 +7,7 @@ reading from it keeps the scheduler and web processes decoupled.
 
 from importlib.metadata import PackageNotFoundError, version
 
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, OuterRef, Subquery, Sum
 from prometheus_client import CollectorRegistry, Gauge
 
 from backup.models import BackupRecord, PiholeConfig
@@ -97,19 +97,32 @@ def build_registry() -> CollectorRegistry:
         (row["config_id"], row["status"]): row["n"]
         for row in BackupRecord.objects.values("config_id", "status").annotate(n=Count("id"))
     }
-    # Max("id") tracks insertion order on SQLite's autoincrement PK — matches created_at for normal inserts.
-    per_config_success = {
-        row["config_id"]: row
-        for row in BackupRecord.objects.filter(status="success")
-        .values("config_id")
-        .annotate(total=Sum("file_size"), latest_id=Max("id"))
+    total_by_config = {
+        row["config_id"]: row["total"]
+        for row in BackupRecord.objects.filter(status="success").values("config_id").annotate(total=Sum("file_size"))
     }
-    latest_any = {
-        row["config_id"]: row["latest_id"]
-        for row in BackupRecord.objects.values("config_id").annotate(latest_id=Max("id"))
+    # Pick "latest" by created_at to match BackupRecord.Meta.ordering; id is the deterministic tiebreaker.
+    latest_success_by_config = {
+        row["id"]: row["latest_pk"]
+        for row in PiholeConfig.objects.annotate(
+            latest_pk=Subquery(
+                BackupRecord.objects.filter(config=OuterRef("pk"), status="success")
+                .order_by("-created_at", "-id")
+                .values("pk")[:1]
+            )
+        ).values("id", "latest_pk")
+        if row["latest_pk"]
     }
-    hydrate_ids = {row["latest_id"] for row in per_config_success.values() if row["latest_id"]}
-    hydrate_ids.update(id_ for id_ in latest_any.values() if id_)
+    latest_any_by_config = {
+        row["id"]: row["latest_pk"]
+        for row in PiholeConfig.objects.annotate(
+            latest_pk=Subquery(
+                BackupRecord.objects.filter(config=OuterRef("pk")).order_by("-created_at", "-id").values("pk")[:1]
+            )
+        ).values("id", "latest_pk")
+        if row["latest_pk"]
+    }
+    hydrate_ids = set(latest_success_by_config.values()) | set(latest_any_by_config.values())
     hydrated = {r.id: r for r in BackupRecord.objects.filter(id__in=hydrate_ids)}
 
     for config in PiholeConfig.objects.all():
@@ -125,7 +138,7 @@ def build_registry() -> CollectorRegistry:
             config.last_successful_backup.timestamp() if config.last_successful_backup else 0
         )
 
-        latest = hydrated.get(latest_any.get(config.id))
+        latest = hydrated.get(latest_any_by_config.get(config.id))
         if latest is None:
             last_status.labels(**labels).set(-1)
         else:
@@ -134,13 +147,8 @@ def build_registry() -> CollectorRegistry:
         for status in backup_status_choices:
             backup_records.labels(**labels, status=status).set(per_config_counts.get((config.id, status), 0))
 
-        success_row = per_config_success.get(config.id)
-        if success_row:
-            total_size.labels(**labels).set(success_row["total"] or 0)
-            latest_success = hydrated.get(success_row["latest_id"])
-            last_size.labels(**labels).set(latest_success.file_size if latest_success else 0)
-        else:
-            total_size.labels(**labels).set(0)
-            last_size.labels(**labels).set(0)
+        total_size.labels(**labels).set(total_by_config.get(config.id, 0) or 0)
+        latest_success = hydrated.get(latest_success_by_config.get(config.id))
+        last_size.labels(**labels).set(latest_success.file_size if latest_success else 0)
 
     return registry

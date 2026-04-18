@@ -1,11 +1,13 @@
 """Tests for the Prometheus /metrics/ endpoint."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone as dj_timezone
 
+from backup.models import BackupRecord
 from backup.tests.factories import (
     BackupRecordFactory,
     FailedBackupRecordFactory,
@@ -107,6 +109,26 @@ def test_metrics_last_success_timestamp(client):
     line = next(ln for ln in body.splitlines() if ln.startswith(line_prefix))
     emitted = float(line[len(line_prefix) :])
     assert emitted == pytest.approx(ts.timestamp())
+
+
+@pytest.mark.django_db
+def test_metrics_latest_picks_by_created_at_not_id(client):
+    # Newest by id is oldest by created_at — metrics must follow created_at.
+    config = PiholeConfigFactory(name="Ord", env_prefix="ORD")
+    older_by_time = BackupRecordFactory(config=config, file_size=111)
+    newer_by_time = BackupRecordFactory(config=config, file_size=222)
+    # Force the higher-id record to be older than the lower-id one.
+    old_time = dj_timezone.now() - timedelta(days=5)
+    BackupRecord.objects.filter(pk=newer_by_time.pk).update(created_at=old_time)
+    newer_by_time.refresh_from_db()
+    assert newer_by_time.created_at < older_by_time.created_at
+    assert newer_by_time.pk > older_by_time.pk
+
+    response = client.get(reverse("metrics"))
+    body = response.content.decode()
+
+    # last size should reflect the record with the most recent created_at (file_size=111).
+    assert f'pihole_backup_file_size_bytes{{config_id="{config.id}"}} 111.0' in body
 
 
 @pytest.mark.django_db
