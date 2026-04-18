@@ -42,9 +42,10 @@ def test_metrics_auth_exempt(client, auth_enabled_settings):
 
 @pytest.mark.django_db
 def test_metrics_auth_exempt_no_trailing_slash(client, auth_enabled_settings):
-    # Prometheus's default metrics_path is /metrics (no trailing slash).
-    response = client.get("/metrics", follow=True)
+    # Prometheus's default metrics_path is /metrics (no trailing slash); must serve directly, not redirect.
+    response = client.get("/metrics")
     assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/plain")
     assert "pihole_info" in response.content.decode()
 
 

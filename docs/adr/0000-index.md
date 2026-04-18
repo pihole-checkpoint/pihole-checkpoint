@@ -34,7 +34,7 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0012](0012-dark-mode-toggle.md) | Dark Mode Toggle | Implemented | 2026-01-19 |
 | [ADR-0013](0013-reliability-security-fixes.md) | Reliability and Security Fixes | Implemented | 2026-01-19 |
 | [ADR-0014](0014-multi-instance-support.md) | Multi-Instance Pi-hole Support | Implemented | 2026-04-07 |
-| [ADR-0015](0015-simple-password-authentication.md) | Simple Password Authentication | Proposed | 2026-04-14 |
+| [ADR-0015](0015-simple-password-authentication.md) | Simple Password Authentication | Accepted | 2026-04-14 |
 | [ADR-0016](0016-prometheus-metrics-endpoint.md) | Prometheus Metrics Endpoint | Accepted | 2026-04-16 |
 
 ---
@@ -57,10 +57,8 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0013: Reliability and Security Fixes
 - ADR-0014: Multi-Instance Pi-hole Support
 
-### Proposed (1)
+### Accepted (2)
 - ADR-0015: Simple Password Authentication
-
-### Accepted (1)
 - ADR-0016: Prometheus Metrics Endpoint
 
 ---

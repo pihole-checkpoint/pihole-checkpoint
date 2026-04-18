@@ -21,5 +21,7 @@ urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("health/", views.health_check, name="health_check"),
+    # Prometheus's default metrics_path is /metrics (no trailing slash); serve both without a 301.
+    path("metrics", views.metrics_view),
     path("metrics/", views.metrics_view, name="metrics"),
 ]

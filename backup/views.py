@@ -263,7 +263,6 @@ def _get_client_ip(request):
 def login_view(request):
     """Login view for optional authentication with rate limiting."""
     from django.core.cache import cache
-    from django.http import HttpResponse
 
     if request.method == "POST":
         client_ip = _get_client_ip(request)
