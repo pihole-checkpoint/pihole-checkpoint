@@ -6,14 +6,16 @@ from django.contrib import messages
 from django.contrib.auth.hashers import check_password
 from django.db import models
 from django.db.models import Count, Sum
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .forms import LoginForm
 from .models import BackupRecord, PiholeConfig
 from .services.backup_service import BackupService
 from .services.credential_service import CredentialService
+from .services.metrics_service import build_registry
 from .services.pihole_client import PiholeV6Client
 from .services.restore_service import RestoreService
 from .services.system_service import is_scheduler_running
@@ -261,7 +263,6 @@ def _get_client_ip(request):
 def login_view(request):
     """Login view for optional authentication with rate limiting."""
     from django.core.cache import cache
-    from django.http import HttpResponse
 
     if request.method == "POST":
         client_ip = _get_client_ip(request)
@@ -313,3 +314,10 @@ def health_check(request):
         return JsonResponse(status, status=503)
 
     return JsonResponse(status)
+
+
+@require_GET
+def metrics_view(request):
+    """Prometheus scrape endpoint (text exposition format). See ADR-0016."""
+    registry = build_registry()
+    return HttpResponse(generate_latest(registry), content_type=CONTENT_TYPE_LATEST)

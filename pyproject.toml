@@ -15,6 +15,7 @@ dependencies = [
     "APScheduler>=3.10,<4.0",
     "python-dotenv>=1.0",
     "whitenoise>=6.6",
+    "prometheus-client>=0.20,<1.0",
 ]
 
 [dependency-groups]
