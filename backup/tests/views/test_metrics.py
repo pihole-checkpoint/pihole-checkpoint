@@ -59,12 +59,14 @@ def test_metrics_empty_configs(client):
     response = client.get(reverse("metrics"))
     body = response.content.decode()
     # No configs, so config-scoped metrics emit only HELP/TYPE with no samples
-    assert "pihole_config_active" in body
-    assert "pihole_backup_records" in body
+    assert "# HELP pihole_config_active" in body
+    assert "# TYPE pihole_config_active gauge" in body
+    assert not any(ln.startswith("pihole_config_active{") for ln in body.splitlines())
+    assert not any(ln.startswith("pihole_backup_records{") for ln in body.splitlines())
 
 
 @pytest.mark.django_db
-def test_metrics_per_config_labels():
+def test_metrics_per_config_labels(client):
     a = PiholeConfigFactory(name="Alpha", env_prefix="ALPHA")
     b = PiholeConfigFactory(name="Beta", env_prefix="BETA", is_active=False)
     BackupRecordFactory(config=a, file_size=100)
@@ -72,9 +74,7 @@ def test_metrics_per_config_labels():
     FailedBackupRecordFactory(config=a)
     BackupRecordFactory(config=b, file_size=500)
 
-    from django.test import Client
-
-    response = Client().get(reverse("metrics"))
+    response = client.get(reverse("metrics"))
     body = response.content.decode()
 
     assert f'pihole_config_info{{config_id="{a.id}",config_name="Alpha"}} 1.0' in body
@@ -86,13 +86,13 @@ def test_metrics_per_config_labels():
     assert f'pihole_backup_records{{config_id="{a.id}",status="success"}} 2.0' in body
     assert f'pihole_backup_records{{config_id="{a.id}",status="failed"}} 1.0' in body
 
-    # Alpha total size: 100 + 250 = 350; last (most recent id) = 250
+    # Alpha total size: 100 + 250 = 350; most recent successful = 250
     assert f'pihole_backup_total_size_bytes{{config_id="{a.id}"}} 350.0' in body
     assert f'pihole_backup_file_size_bytes{{config_id="{a.id}"}} 250.0' in body
 
 
 @pytest.mark.django_db
-def test_metrics_last_success_timestamp():
+def test_metrics_last_success_timestamp(client):
     ts = datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
     config = PiholeConfigFactory(
         name="TS",
@@ -100,9 +100,7 @@ def test_metrics_last_success_timestamp():
         last_successful_backup=ts,
     )
 
-    from django.test import Client
-
-    response = Client().get(reverse("metrics"))
+    response = client.get(reverse("metrics"))
     body = response.content.decode()
 
     line_prefix = f'pihole_backup_last_success_timestamp_seconds{{config_id="{config.id}"}} '
@@ -112,11 +110,10 @@ def test_metrics_last_success_timestamp():
 
 
 @pytest.mark.django_db
-def test_metrics_connection_status_one_hot():
+def test_metrics_connection_status_one_hot(client):
     config = PiholeConfigFactory(name="Conn", env_prefix="CONN", connection_status="auth_error")
-    from django.test import Client
 
-    response = Client().get(reverse("metrics"))
+    response = client.get(reverse("metrics"))
     body = response.content.decode()
 
     assert f'pihole_connection_status{{config_id="{config.id}",status="auth_error"}} 1.0' in body

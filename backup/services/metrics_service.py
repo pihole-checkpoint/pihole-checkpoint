@@ -97,19 +97,20 @@ def build_registry() -> CollectorRegistry:
         (row["config_id"], row["status"]): row["n"]
         for row in BackupRecord.objects.values("config_id", "status").annotate(n=Count("id"))
     }
+    # Max("id") tracks insertion order on SQLite's autoincrement PK — matches created_at for normal inserts.
     per_config_success = {
         row["config_id"]: row
         for row in BackupRecord.objects.filter(status="success")
         .values("config_id")
         .annotate(total=Sum("file_size"), latest_id=Max("id"))
     }
-    latest_record_ids = [row["latest_id"] for row in per_config_success.values() if row["latest_id"]]
-    latest_records = {r.config_id: r for r in BackupRecord.objects.filter(id__in=latest_record_ids)}
     latest_any = {
         row["config_id"]: row["latest_id"]
         for row in BackupRecord.objects.values("config_id").annotate(latest_id=Max("id"))
     }
-    latest_any_records = {r.id: r for r in BackupRecord.objects.filter(id__in=list(latest_any.values()))}
+    hydrate_ids = {row["latest_id"] for row in per_config_success.values() if row["latest_id"]}
+    hydrate_ids.update(id_ for id_ in latest_any.values() if id_)
+    hydrated = {r.id: r for r in BackupRecord.objects.filter(id__in=hydrate_ids)}
 
     for config in PiholeConfig.objects.all():
         labels = {"config_id": str(config.id)}
@@ -124,8 +125,7 @@ def build_registry() -> CollectorRegistry:
             config.last_successful_backup.timestamp() if config.last_successful_backup else 0
         )
 
-        latest_id = latest_any.get(config.id)
-        latest = latest_any_records.get(latest_id) if latest_id else None
+        latest = hydrated.get(latest_any.get(config.id))
         if latest is None:
             last_status.labels(**labels).set(-1)
         else:
@@ -137,7 +137,7 @@ def build_registry() -> CollectorRegistry:
         success_row = per_config_success.get(config.id)
         if success_row:
             total_size.labels(**labels).set(success_row["total"] or 0)
-            latest_success = latest_records.get(config.id)
+            latest_success = hydrated.get(success_row["latest_id"])
             last_size.labels(**labels).set(latest_success.file_size if latest_success else 0)
         else:
             total_size.labels(**labels).set(0)
