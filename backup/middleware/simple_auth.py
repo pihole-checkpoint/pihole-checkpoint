@@ -28,6 +28,7 @@ class SimpleAuthMiddleware:
         # Allow login, logout, health check, and metrics URLs
         allowed_paths = [
             reverse("login"),
+            reverse("logout"),
             reverse("health_check"),
             reverse("metrics"),
         ]
