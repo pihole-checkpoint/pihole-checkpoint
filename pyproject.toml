@@ -10,19 +10,19 @@ requires-python = ">=3.12"
 dependencies = [
     "Django>=5.0,<6.0",
     "gunicorn>=21.0",
-    "requests>=2.31",
+    "requests>=2.33,<3.0",
     "django-apscheduler>=0.6",
     "APScheduler>=3.10,<4.0",
-    "python-dotenv>=1.0",
-    "whitenoise>=6.6",
+    "python-dotenv>=1.2.2,<2.0",
+    "whitenoise>=6.12,<7.0",
     "prometheus-client>=0.20,<1.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0",
-    "pytest-django>=4.7",
-    "pytest-cov>=4.1",
+    "pytest>=9.0.3,<10.0",
+    "pytest-django>=4.12,<5.0",
+    "pytest-cov>=7.1,<8.0",
     "responses>=0.24",
     "factory-boy>=3.3",
     "freezegun>=1.2",
