@@ -8,7 +8,7 @@ version = "1.2.0"
 description = "Web application for backing up Pi-hole v6 instances via the Teleporter API"
 requires-python = ">=3.12"
 dependencies = [
-    "Django>=5.0,<6.0",
+    "Django>=5.0,<7.0",
     "gunicorn>=26.0,<27.0",
     "requests>=2.33,<3.0",
     "django-apscheduler>=0.6",
@@ -59,7 +59,6 @@ markers = [
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
-    "ignore::django.utils.deprecation.RemovedInDjango60Warning",
 ]
 
 [tool.coverage.run]
