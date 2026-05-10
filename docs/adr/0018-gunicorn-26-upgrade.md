@@ -1,6 +1,6 @@
 # ADR-0018: Gunicorn 26.0 Upgrade
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-05-09
 **Deciders:** Leonardo Merza
 

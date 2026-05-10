@@ -36,14 +36,14 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 | [ADR-0014](0014-multi-instance-support.md) | Multi-Instance Pi-hole Support | Implemented | 2026-04-07 |
 | [ADR-0015](0015-simple-password-authentication.md) | Simple Password Authentication | Accepted | 2026-04-14 |
 | [ADR-0016](0016-prometheus-metrics-endpoint.md) | Prometheus Metrics Endpoint | Accepted | 2026-04-16 |
-| [ADR-0017](0017-django-6-upgrade.md) | Django 6.0 Upgrade | Proposed | 2026-05-09 |
-| [ADR-0018](0018-gunicorn-26-upgrade.md) | Gunicorn 26.0 Upgrade | Proposed | 2026-05-09 |
+| [ADR-0017](0017-django-6-upgrade.md) | Django 6.0 Upgrade | Implemented | 2026-05-09 |
+| [ADR-0018](0018-gunicorn-26-upgrade.md) | Gunicorn 26.0 Upgrade | Implemented | 2026-05-09 |
 
 ---
 
 ## Summary by Status
 
-### Implemented (14)
+### Implemented (16)
 - ADR-0001: Pi-hole v6 Backup Application Architecture
 - ADR-0002: Offline Static Assets (Remove CDN Dependencies)
 - ADR-0003: Single Container Architecture
@@ -58,14 +58,12 @@ This document serves as the index for all Architecture Decision Records (ADRs) i
 - ADR-0012: Dark Mode Toggle
 - ADR-0013: Reliability and Security Fixes
 - ADR-0014: Multi-Instance Pi-hole Support
+- ADR-0017: Django 6.0 Upgrade
+- ADR-0018: Gunicorn 26.0 Upgrade
 
 ### Accepted (2)
 - ADR-0015: Simple Password Authentication
 - ADR-0016: Prometheus Metrics Endpoint
-
-### Proposed (2)
-- ADR-0017: Django 6.0 Upgrade
-- ADR-0018: Gunicorn 26.0 Upgrade
 
 ---
 
