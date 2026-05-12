@@ -21,7 +21,7 @@ WORKDIR /app
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl procps \
+RUN apt-get update && apt-get install -y --no-install-recommends curl procps tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy only dependency files first (layer cached if deps unchanged)
